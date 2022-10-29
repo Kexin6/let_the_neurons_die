@@ -1,0 +1,67 @@
+Algorithm 2: BRRR attack algorithm
+
+Input: real model M, surrogate model S, loss of model LM, loss of surrogate model LS, function getbatch to get
+next batch of real data, function train(model M0
+, L, B) that trains model M0 with loss L on batch of data
+B, current attack type ATK, batch type attack BTCH (reorder batchers or reshuffling datapoints)
+/* List to store data points */
+datas = []
+/* Let the model to train for a single epoch to record all of the data. */
+do
+    b = getbatch()
+    if BTCH == "batch" then
+        add batch b into datas
+    else
+        add individual points from batch b into datas
+    train(M, LM, b)
+    train(S, LS, b)
+while b not in datas
+
+
+/* Now that all data has been seen, start the attack */
+while training do
+/* List to store data-loss of individual points */
+datacosts = {}
+for datapoint or batch d in datas do
+loss = LS(S, d)
+datacosts[d] = loss
+/* List to store data points or batches not yet used in the current epoch, sorted from low to
+high loss */
+epochdatas = copy(datas).sort(by datacosts)
+if ATK == "oscillating out" then
+/* If oscilation is outward need to invert halves */
+left = epochdatas[:len(epochdatas)//2][::-1]
+right = epochdatas[len(epochdatas)//2:][::-1]
+epochdatas = left + right
+/* Now that all data has been seen, start the attack */
+/* Flag for oscilation attack */
+osc = False
+while len(epochdatas) > 0 do
+/* Pretend reading data and throw it away */
+b
+0 = getbatch()
+if BTCH == "batch" then
+batchsize = 1
+else
+batchsize = len(b
+0
+)
+/* Batching data from low to high */
+if ATK == "lowhigh" then
+batch b = epochdata[:batchsize]
+epochdata = epochdata[batchsize:]
+/* Batching data from high to low */
+if ATK == "highlow" then
+batch b = epochdata[-batchsize:]
+epochdata = epochdata[:-batchsize]
+/* Batching data with oscillating losses */
+if ATK == "oscillating in" or "oscillating out" then
+osc = not osc
+if osc then
+batch b = epochdata[-batchsize:]
+epochdata = epochdata[:-batchsize]
+else
+batch b = epochdata[:batchsize]
+epochdata = epochdata[batchsize:]
+train(M, LM, b)
+train(S, LS, b)
