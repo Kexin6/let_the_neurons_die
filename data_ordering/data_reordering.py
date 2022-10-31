@@ -1,6 +1,7 @@
 from __future__ import print_function
 import argparse
 import copy, math
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -43,18 +44,24 @@ class Net(nn.Module):
 # Calculate their updates
 # Compare their weight deltas (do we need to do a baseline compare or is gradient enough)
 # Calculate the score based on the gradient
-# TODO: order datapoints by score
-def score_datapoints(args, temp_model, adversarial_model, device, train_loader, temp_optimizer, adversarial_optimizer):
-    temp_model.train()
+def score_datapoint_weights(args, temp_model, adversarial_model, device, train_loader, starting_idx):
+    base_model = copy.deepcopy(temp_model.state_dict())
     weights = []
+    score_list = {}
 
     for param in temp_model.parameters():
-        print(param.size())
         weights.append(param.clone())
 
+    adversarial_weights = np.empty([0]) # weights of adversary
+    for param in adversarial_model.parameters():
+        adversarial_weights = np.concatenate((adversarial_weights, param.cpu().detach().numpy()), axis=None)
+    
     for batch_idx, (data, target) in enumerate(train_loader):
+        # Set model
+        temp_model.load_state_dict(base_model)
+        temp_model.train()
+        temp_optimizer = optim.Adadelta(temp_model.parameters(), lr=args.lr)
         data, target = data.to(device), target.to(device)
-        
 
         # Temp Model
         temp_optimizer.zero_grad()
@@ -63,31 +70,33 @@ def score_datapoints(args, temp_model, adversarial_model, device, train_loader, 
         loss_temp.backward()
         temp_optimizer.step()
 
-        # Adversarial Model
-        adversarial_optimizer.zero_grad()
-        output_adversary= adversarial_model(data)
-        loss_adversary = F.nll_loss(output_adversary, target)
-        loss_adversary.backward()
-        adversarial_optimizer.step()
-
-
-        temp_weights = [] # weights after backprop
+        
+        temp_weights = np.empty([0]) # weights after backprop
         for param in temp_model.parameters():
-            temp_weights.append(param.clone())
-        temp_res =  [abs(ele) for ele in temp_weights]
-        
-        adversarial_weights = [] # weights after backprop
-        for param in adversarial_model.parameters():
-            adversarial_weights.append(param.clone())
-        adversarial_res =  [abs(ele) for ele in adversarial_weights]
+            temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
+    
+        gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
+        score_np = np.sum(gradient_delta)
+        dataset_idx = starting_idx + batch_idx
+        score_list[dataset_idx] = score_np
+    
+    return score_list
 
-        gradient_delta = torch.sub(temp_res, adversarial_res)
-        score = torch.sum(torch.abs(gradient_delta))
-        # Higher the score the worse it is
-        
-
-        
-
+def train(args, model, device, train_loader, optimizer, epoch):
+    model.train()
+    for batch_idx, (data, target) in enumerate(train_loader):
+        data, target = data.to(device), target.to(device)
+        optimizer.zero_grad()
+        output = model(data)
+        loss = F.nll_loss(output, target)
+        loss.backward()
+        optimizer.step()
+        if batch_idx % args.log_interval == 0:
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader), loss.item()))
+            if args.dry_run:
+                break
 
 def test(model, device, test_loader):
     model.eval()
@@ -107,10 +116,6 @@ def test(model, device, test_loader):
         test_loss, correct, len(test_loader.dataset),
         100. * correct / len(test_loader.dataset)))
 
-def loss_ranking(surrogate_model, data):
-
-    return ""
-
 def get_weights(model):
     weights = []
     for param in model.parameters():
@@ -119,10 +124,12 @@ def get_weights(model):
     weights = torch.cat(weights)
     return weights
     
+def Merge(dict1, dict2):
+    return(dict2.update(dict1))
 
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='PyTorch MNIST Example')
+    parser = argparse.ArgumentParser(description='Data Ordering Attack')
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
@@ -145,6 +152,8 @@ def main():
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=False,
                         help='For Saving the current Model')
+    parser.add_argument('--attack-type', type=str, default='single',
+                        help='Pick attack type')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     
@@ -173,27 +182,51 @@ def main():
     dataset_size = len(dataset1)
     dataset_indices = list(range(dataset_size))
     train_sampler = SequentialSampler(dataset_indices)
-    train_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=100, sampler=train_sampler)
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
    
 
+    # Define Models
     adversarial_model = Net().to(device)
     temp_model = Net().to(device)
+    attack_model = Net().to(device)
 
     # TODO: Load in some adversary
-    # adversarial_model.load_state_dict(torch.load("mnist_cnn.pt"))
+    adversarial_model.load_state_dict(torch.load("mnist_cnn.pt"))
 
-    temp_optimizer = optim.Adadelta(temp_model.parameters(), lr=args.lr)
-    adversarial_optimizer = optim.Adadelta(adversarial_model.parameters(), lr=args.lr)
+    attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
 
-    scheduler = StepLR(temp_optimizer, step_size=1, gamma=args.gamma)
-    # for epoch in range(1, args.epochs + 1):
-    score_datapoints(args, temp_model, adversarial_model, device, train_loader, temp_optimizer, adversarial_optimizer)
-    #     test(model, device, test_loader)
-    #     scheduler.step()
+    # Create a sampler for the attack
+    attack_sampler = SequentialSampler(dataset_indices)
+    
+    # Specific attacks
+    if args.attack_type == 'single':
+        # Run through all the datapoints once to get score and do it in one shot
+        print("Running simple data order attack")
+        temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=150, sampler=train_sampler)
+        score_dict = {}
+    
+        for _ in enumerate(temp_loader):
+            print('Ordering batch: ' + str(_[0]))
+            starting_idx = len(score_dict)
+            new_scores = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader, starting_idx)
+            Merge(new_scores, score_dict)
+        print("Data Order")
+        # Higher the score the worse it is
+        sorted_scores = sorted(score_dict, key=score_dict.get) 
+        print(sorted_scores)
+        attack_sampler = SequentialSampler(sorted_scores)
 
-    # #if args.save_model:
-    # torch.save(model.state_dict(), "mnist_cnn.pt")
+    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=100, sampler=attack_sampler)
+    scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
+
+    for epoch in range(1, args.epochs + 1):
+        train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+        test(attack_model, device, test_loader)
+        scheduler.step()
+
+    if args.save_model:
+        torch.save(attack_model.state_dict(), "mnist_cnn.pt")
+    
 
 
 if __name__ == '__main__':
