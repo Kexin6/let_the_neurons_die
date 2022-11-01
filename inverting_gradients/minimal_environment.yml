@@ -1,0 +1,16 @@
+# Minimal environment
+# reference: https://github.com/JonasGeiping/breaching/blob/main/minimal_environment.yml
+# RUN conda env create --file minimal_environment.yml
+
+name: breaching
+channels:
+  - pytorch
+  - defaults
+dependencies:
+  - pytorch=1.10
+  - torchvision
+  - pip
+  - scipy
+  - pip:
+      - hydra-core
+      - lpips
