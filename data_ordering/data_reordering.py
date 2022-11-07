@@ -11,33 +11,7 @@ from torch.optim.lr_scheduler import StepLR
 from torch.utils.data import SequentialSampler
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3, 1)
-        self.dropout1 = nn.Dropout(0.25)
-        self.dropout2 = nn.Dropout(0.5)
-        self.fc1 = nn.Linear(9216, 128)
-        self.fc2 = nn.Linear(128, 10)
-
-    def forward(self, x):
-        x = self.conv1(x)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x)
-        x = F.max_pool2d(x, 2)
-        x = self.dropout1(x)
-        x = torch.flatten(x, 1)
-        x = self.fc1(x)
-        x = F.relu(x)
-        x = self.dropout2(x)
-        x = self.fc2(x)
-        output = F.log_softmax(x, dim=1)
-        return output
-
+import model
 
 # Algorithm
 # Run the temp_model and adversarial_model on the datapoint
@@ -127,6 +101,31 @@ def get_weights(model):
 def Merge(dict1, dict2):
     return(dict2.update(dict1))
 
+def load_attacker(weight_file, network):
+    saved = np.load(weight_file, allow_pickle=True)
+
+    print(len(saved[0]))
+    print(len(saved[1]))
+    print(len(saved[2]))
+    print(len(saved[3]))
+    #print(len(saved[4]))
+    #print(ree)
+    # sd = {}
+    # i = 0
+    # for name, weight in network.named_parameters():
+    #     param_len = weight.nelement()
+    #     param = torch.tensor(saved[i:i+param_len])
+    #     param = param.view_as(weight)
+    #     sd[name] = param
+    #     i += param_len
+        
+    # for (name1), (name2, param2) in zip(sd, network.named_parameters()):
+    #     param1 = sd[name1]
+    #     print('name {} equal: {}'.format(name1, name1==name2))
+    #     print('param equal {}'.format((param1 == param2).all()))
+    
+    return network
+
 def main():
     # Training settings
     parser = argparse.ArgumentParser(description='Data Ordering Attack')
@@ -134,7 +133,7 @@ def main():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=3, metavar='N',
+    parser.add_argument('--epochs', type=int, default=15, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
                         help='learning rate (default: 1.0)')
@@ -186,12 +185,15 @@ def main():
    
 
     # Define Models
-    adversarial_model = Net().to(device)
-    temp_model = Net().to(device)
-    attack_model = Net().to(device)
+
+    adversarial_model = model.DenseNet().to(device)
+    temp_model = model.DenseNet().to(device)
+    attack_model = model.DenseNet().to(device)
 
     # TODO: Load in some adversary
-    adversarial_model.load_state_dict(torch.load("mnist_cnn.pt"))
+    #adversarial_model.load_state_dict(torch.load("mnist_cnn.pt"))
+    weight_file = 'weights_target_array.npy'
+    attack_model = load_attacker(weight_file, attack_model)
 
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
 
