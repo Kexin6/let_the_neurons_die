@@ -188,7 +188,6 @@ def main():
     adversarial_model = load_attacker(weight_file, adversarial_model)
 
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
-    dataset_indices = [1, 2, 3, 4, 5, 6]
     # Create a sampler for the attack
     attack_sampler = SequentialSampler(dataset_indices)
     
@@ -226,6 +225,14 @@ def main():
 
             train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
             test(attack_model, device, test_loader)
+            scheduler.step()
+    else:
+        print("else")
+        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=200, sampler=attack_sampler)
+        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
+        for epoch in range(1, args.epochs + 1):
+            train(args, adversarial_model, device, attack_loader, attack_optimizer, epoch)
+            test(adversarial_model, device, test_loader)
             scheduler.step()
 
 
