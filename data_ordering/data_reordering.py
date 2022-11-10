@@ -1,6 +1,7 @@
 from __future__ import print_function
-import argparse
+import argparse, textwrap
 import copy, math
+from unittest import result
 import numpy as np
 import torch
 import torch.nn as nn
@@ -48,15 +49,34 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
         loss_temp.backward()
         temp_optimizer.step()
 
-        temp_weights = np.empty([0]) # weights after backprop
-        for param in temp_model.parameters():
-            temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
-    
-        gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
-        score_np = np.sum(gradient_delta)
-        score_list[i] = score_np
-        i+= 1
-    
+
+        if (args.score_heuristic == 0):
+            temp_weights = np.empty([0]) # weights after backprop
+            for param in temp_model.parameters():
+                temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
+            
+            gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
+            score_np = np.sum(gradient_delta)
+            dataset_idx = starting_idx + batch_idx
+            score_list[dataset_idx] = score_np
+        elif (args.score_heuristic == 1):
+            temp_weights = np.empty([0]) # weights after backprop
+            scaling_lambda = np.empty([0]) # taking each weight into consideration
+            for param in temp_model.parameters():
+                temp_np = param.cpu().detach().numpy()
+                w_max = np.amax(temp_np)
+                temp_np = 1 - temp_np / w_max
+                scaling_lambda = np.concatenate((scaling_lambda, temp_np), axis=None)
+                temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
+                
+            
+            gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
+            score_np = np.sum(np.multiply(np.transpose(scaling_lambda), np.sum(gradient_delta)))
+            
+            dataset_idx = starting_idx + batch_idx
+            score_list[dataset_idx] = score_np
+            
+    # print(score_list)
     return score_list
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -104,6 +124,7 @@ def get_weights(model):
 def Merge(dict1, dict2):
     return(dict2.update(dict1))
 
+
 def load_attacker(weight_file, network):
     saved = np.load(weight_file, allow_pickle=True)
     for elem in saved:
@@ -120,9 +141,21 @@ def load_attacker(weight_file, network):
             i += 1
     return network
 
+
+# For ordering array of dictionaries by dictionary values
+def sum_getter(arr):
+    return sum(arr.values())
+
+# For merging array of dictionaries to a single dictionary
+def MergeDicts(arr):
+    result = {}
+    for d in arr:
+        result.update(d)
+    return result
+
 def main():
     # Training settings
-    parser = argparse.ArgumentParser(description='Data Ordering Attack')
+    parser = argparse.ArgumentParser(description='Data Ordering Attack', formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--batch-size', type=int, default=64, metavar='N',
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
@@ -147,6 +180,14 @@ def main():
                         help='For Saving the current Model')
     parser.add_argument('--attack-type', type=str, default='single',
                         help='Pick attack type')
+    parser.add_argument('--score-heuristic', type=int, default=0,
+                        help=textwrap.dedent('''
+                        Different score heuristics to try 
+                        0: only consider distance 
+                        1: distance + original weight
+                        '''))
+    parser.add_argument('--attack-batch-size', type=int, default=1000,
+                        help='Number of datapoints in each batch for batch ordering attack')
     args = parser.parse_args()
     use_cuda = not args.no_cuda and torch.cuda.is_available()
     
@@ -201,7 +242,6 @@ def main():
         # Higher the score the worse it is
         sorted_scores = sorted(score_dict, key=score_dict.get) 
         attack_sampler = SequentialSampler(sorted_scores)
-
         attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=200, sampler=attack_sampler)
         scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
 
@@ -226,6 +266,38 @@ def main():
             train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
             test(attack_model, device, test_loader)
             scheduler.step()
+    
+    elif args.attack_type == 'batch':
+        # Run through all the datapoints once to get score and do it in one shot in batches
+        print("Running simple batch data order attack")
+        # TODO: Currently we ask users to input batch_size. 
+        # This may not be intuitive, later on we may change user args input to num_batches
+        # and calculate batch_size by modulo calculation
+        temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=args.attack_batch_size, sampler=train_sampler)
+        starting_idx = 0
+        score_dicts_arr = []
+    
+        for _ in enumerate(temp_loader):
+            print('For batch: ' + str(_[0]))
+            new_scores = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader, starting_idx)
+            starting_idx += len(new_scores)
+            score_dicts_arr.append(new_scores)
+            # print(score_dicts_arr)
+        print("Data Order for batch")
+        # Higher the score the worse it is
+        sorted_scores_dict_arr = sorted(score_dicts_arr, key=sum_getter) # currently sorted_scores_dict_arr is still an array of dictionaries
+        print(sorted_scores_dict_arr)
+        sorted_scores = MergeDicts(sorted_scores_dict_arr)
+        print(sorted_scores) # should be a large sorted dictionary
+        attack_sampler = SequentialSampler(sorted_scores)
+
+        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=100, sampler=attack_sampler)
+        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
+        for epoch in range(1, args.epochs + 1):
+            train(args, adversarial_model, device, attack_loader, attack_optimizer, epoch)
+            test(adversarial_model, device, test_loader)
+            scheduler.step()
+    
     else:
         print("else")
         attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=200, sampler=attack_sampler)
@@ -234,7 +306,6 @@ def main():
             train(args, adversarial_model, device, attack_loader, attack_optimizer, epoch)
             test(adversarial_model, device, test_loader)
             scheduler.step()
-
 
     if args.save_model:
         torch.save(attack_model.state_dict(), "mnist_cnn.pt")
