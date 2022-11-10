@@ -18,7 +18,7 @@ import model
 # Calculate their updates
 # Compare their weight deltas (do we need to do a baseline compare or is gradient enough)
 # Calculate the score based on the gradient
-def score_datapoint_weights(args, temp_model, adversarial_model, device, train_loader, starting_idx):
+def score_datapoint_weights(args, temp_model, adversarial_model, device, train_loader):
     base_model = copy.deepcopy(temp_model.state_dict())
     weights = []
     score_list = {}
@@ -30,8 +30,12 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
     for param in adversarial_model.parameters():
         adversarial_weights = np.concatenate((adversarial_weights, param.cpu().detach().numpy()), axis=None)
     
+    i = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         # Set model
+        if i % 1000 == 0:
+            print("On data point: " + str(i))
+
         temp_model.load_state_dict(base_model)
         temp_model.train()
         temp_optimizer = optim.Adadelta(temp_model.parameters(), lr=args.lr)
@@ -44,15 +48,14 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
         loss_temp.backward()
         temp_optimizer.step()
 
-        
         temp_weights = np.empty([0]) # weights after backprop
         for param in temp_model.parameters():
             temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
     
         gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
         score_np = np.sum(gradient_delta)
-        dataset_idx = starting_idx + batch_idx
-        score_list[dataset_idx] = score_np
+        score_list[i] = score_np
+        i+= 1
     
     return score_list
 
@@ -103,27 +106,18 @@ def Merge(dict1, dict2):
 
 def load_attacker(weight_file, network):
     saved = np.load(weight_file, allow_pickle=True)
-
-    print(len(saved[0]))
-    print(len(saved[1]))
-    print(len(saved[2]))
-    print(len(saved[3]))
-    #print(len(saved[4]))
-    #print(ree)
-    # sd = {}
-    # i = 0
-    # for name, weight in network.named_parameters():
-    #     param_len = weight.nelement()
-    #     param = torch.tensor(saved[i:i+param_len])
-    #     param = param.view_as(weight)
-    #     sd[name] = param
-    #     i += param_len
-        
-    # for (name1), (name2, param2) in zip(sd, network.named_parameters()):
-    #     param1 = sd[name1]
-    #     print('name {} equal: {}'.format(name1, name1==name2))
-    #     print('param equal {}'.format((param1 == param2).all()))
-    
+    for elem in saved:
+        print(np.shape(elem))
+    print("Adversarial Model Shape")
+    i = 0
+    for layer in network.state_dict():
+        print(layer)
+        if 'weight' in layer: 
+            print(np.shape(saved[i]))
+            transposed = np.transpose(saved[i])
+            new_weights = torch.from_numpy(transposed)
+            network.state_dict()[layer].data.copy_(new_weights)
+            i += 1
     return network
 
 def main():
@@ -133,7 +127,7 @@ def main():
                         help='input batch size for training (default: 64)')
     parser.add_argument('--test-batch-size', type=int, default=1000, metavar='N',
                         help='input batch size for testing (default: 1000)')
-    parser.add_argument('--epochs', type=int, default=15, metavar='N',
+    parser.add_argument('--epochs', type=int, default=7, metavar='N',
                         help='number of epochs to train (default: 14)')
     parser.add_argument('--lr', type=float, default=1.0, metavar='LR',
                         help='learning rate (default: 1.0)')
@@ -190,13 +184,11 @@ def main():
     temp_model = model.DenseNet().to(device)
     attack_model = model.DenseNet().to(device)
 
-    # TODO: Load in some adversary
-    #adversarial_model.load_state_dict(torch.load("mnist_cnn.pt"))
     weight_file = 'weights_target_array.npy'
-    attack_model = load_attacker(weight_file, attack_model)
+    adversarial_model = load_attacker(weight_file, adversarial_model)
 
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
-
+    dataset_indices = [1, 2, 3, 4, 5, 6]
     # Create a sampler for the attack
     attack_sampler = SequentialSampler(dataset_indices)
     
@@ -204,27 +196,38 @@ def main():
     if args.attack_type == 'single':
         # Run through all the datapoints once to get score and do it in one shot
         print("Running simple data order attack")
-        temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=150, sampler=train_sampler)
-        score_dict = {}
-    
-        for _ in enumerate(temp_loader):
-            print('Ordering batch: ' + str(_[0]))
-            starting_idx = len(score_dict)
-            new_scores = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader, starting_idx)
-            Merge(new_scores, score_dict)
-        print("Data Order")
+        temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=train_sampler)
+        score_dict = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader)
+        
         # Higher the score the worse it is
         sorted_scores = sorted(score_dict, key=score_dict.get) 
-        print(sorted_scores)
         attack_sampler = SequentialSampler(sorted_scores)
 
-    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=100, sampler=attack_sampler)
-    scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
+        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=200, sampler=attack_sampler)
+        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
 
-    for epoch in range(1, args.epochs + 1):
-        train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
-        test(attack_model, device, test_loader)
-        scheduler.step()
+        for epoch in range(1, args.epochs + 1):
+            train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+            test(attack_model, device, test_loader)
+            scheduler.step()
+    elif args.attack_type == 'every_epoch':
+        print("Running every epoch")
+        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
+        for epoch in range(1, args.epochs + 1):
+            attack_weights = copy.deepcopy(attack_model.state_dict())
+            temp_model.load_state_dict(attack_weights)
+            temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=train_sampler)
+            score_dict = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader)
+
+            sorted_scores = sorted(score_dict, key=score_dict.get) 
+            attack_sampler = SequentialSampler(sorted_scores)
+
+            attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=200, sampler=attack_sampler)
+
+            train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+            test(attack_model, device, test_loader)
+            scheduler.step()
+
 
     if args.save_model:
         torch.save(attack_model.state_dict(), "mnist_cnn.pt")

@@ -38,11 +38,6 @@ class DenseNet(nn.Module):
             nn.Linear(image_size, 392), nn.ReLU(),
             nn.Linear(392, 49), nn.ReLU(), 
             nn.Linear(49, 49), nn.ReLU(), 
-            nn.Linear(49, 49), nn.ReLU(), 
-            nn.Linear(49, 49), nn.ReLU(), 
-            nn.Linear(49, 49), nn.ReLU(), 
-            nn.Linear(49, 49), nn.ReLU(), 
-            nn.Linear(49, 49), nn.ReLU(), 
             nn.Linear(49, num_classes), nn.Softmax(dim=1))
 
     def forward(self, x):
