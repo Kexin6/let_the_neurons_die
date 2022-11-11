@@ -12,6 +12,7 @@ from torch.utils.data import SequentialSampler
 from torch.utils.data import DataLoader
 import matplotlib.pyplot as plt
 import model
+import adversary
 
 # Algorithm
 # Run the temp_model and adversarial_model on the datapoint
@@ -27,9 +28,14 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
         weights.append(param.clone())
 
     adversarial_weights = np.empty([0]) # weights of adversary
-    for param in adversarial_model.parameters():
-        adversarial_weights = np.concatenate((adversarial_weights, param.cpu().detach().numpy()), axis=None)
-    
+    for layer in adversarial_model.state_dict():
+            if 'weight' in layer: 
+                adversarial_weights = np.concatenate((adversarial_weights, adversarial_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
+           
+    # for param in adversarial_model.parameters():
+    #     adversarial_weights = np.concatenate((adversarial_weights, param.cpu().detach().numpy()), axis=None)
+    # print(np.sum(np.abs(adversarial_weights)))
+    # print(adversarial_weights)
     i = 0
     for batch_idx, (data, target) in enumerate(train_loader):
         # Set model
@@ -37,6 +43,14 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
             print("On data point: " + str(i))
 
         temp_model.load_state_dict(base_model)
+        # print("initial weights")
+        # temp_weights = np.empty([0]) # weights after backprop
+        # for layer in temp_model.state_dict():
+        #     if 'weight' in layer: 
+        #         temp_weights = np.concatenate((temp_weights, temp_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
+        # for param in temp_model.parameters():
+        #     temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
+        # print(np.sum(np.abs(temp_weights)))
         temp_model.train()
         temp_optimizer = optim.Adadelta(temp_model.parameters(), lr=args.lr)
         data, target = data.to(device), target.to(device)
@@ -49,11 +63,17 @@ def score_datapoint_weights(args, temp_model, adversarial_model, device, train_l
         temp_optimizer.step()
 
         temp_weights = np.empty([0]) # weights after backprop
-        for param in temp_model.parameters():
-            temp_weights = np.concatenate((temp_weights, param.cpu().detach().numpy()), axis=None)
-    
+        for layer in temp_model.state_dict():
+            if 'weight' in layer: 
+                temp_weights = np.concatenate((temp_weights, temp_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
+        
         gradient_delta = np.abs(np.subtract(temp_weights, adversarial_weights))
-        score_np = np.sum(gradient_delta)
+        w_max = np.amax(temp_weights)
+        weight_scaler = 1 - temp_weights / w_max
+        weighted_values = np.multiply(weight_scaler, gradient_delta)
+        score_np = np.sum(weighted_values)
+        # old_score = np.sum(gradient_delta)
+
         score_list[i] = score_np
         i+= 1
     
@@ -116,6 +136,17 @@ def load_attacker(weight_file, network):
             print(np.shape(saved[i]))
             transposed = np.transpose(saved[i])
             new_weights = torch.from_numpy(transposed)
+            network.state_dict()[layer].data.copy_(new_weights)
+            i += 1
+    return network
+
+def load_attacker_weight_list(weight_list, network):
+   
+    i = 0
+    for layer in network.state_dict():
+        print(layer)
+        if 'weight' in layer: 
+            new_weights = torch.from_numpy(weight_list[i])
             network.state_dict()[layer].data.copy_(new_weights)
             i += 1
     return network
@@ -184,8 +215,19 @@ def main():
     temp_model = model.DenseNet().to(device)
     attack_model = model.DenseNet().to(device)
 
-    weight_file = 'weights_target_array.npy'
-    adversarial_model = load_attacker(weight_file, adversarial_model)
+    
+    ### Getting knock-out weights directly 
+    adversarial_weights = [] # weights of adversary    
+    for layer in adversarial_model.state_dict():
+        if 'weight' in layer: 
+            adversarial_weights.append(adversarial_model.state_dict()[layer].data.cpu().detach().numpy())
+    
+    adversarial_weights = adversary.get_target_weights(adversarial_weights, 0.4)
+    adversarial_model = load_attacker_weight_list(adversarial_weights, adversarial_model)
+
+    # Getting knock-out weights from file
+    # weight_file = 'weights_target_array.npy'
+    # adversarial_model = load_attacker(weight_file, adversarial_model)
 
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
     # Create a sampler for the attack
@@ -198,6 +240,9 @@ def main():
         temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=train_sampler)
         score_dict = score_datapoint_weights(args, temp_model, adversarial_model, device, temp_loader)
         
+        print('SCORE Values')
+        for elem in score_dict:
+            print(elem, score_dict[elem])
         # Higher the score the worse it is
         sorted_scores = sorted(score_dict, key=score_dict.get) 
         attack_sampler = SequentialSampler(sorted_scores)
