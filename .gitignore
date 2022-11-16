@@ -1,3 +1,4 @@
 /data
 __pycache__
 weights_target_array.npy
+data_ordering/cifar10_cnn.pt
