@@ -293,7 +293,7 @@ def main():
                         help='quickly check a single pass')
     parser.add_argument('--seed', type=int, default=1, metavar='S',
                         help='random seed (default: 1)')
-    parser.add_argument('--log-interval', type=int, default=10, metavar='N',
+    parser.add_argument('--log-interval', type=int, default=1000, metavar='N',
                         help='how many batches to wait before logging training status')
     parser.add_argument('--save-model', action='store_true', default=True,
                         help='For Saving the current Model')
@@ -330,9 +330,9 @@ def main():
         ])
 
     if args.dataset == 'MNIST':
-        dataset1 = datasets.MNIST('../data', train=False, download=True,
+        dataset1 = datasets.MNIST('../data', train=True, download=True,
                         transform=transform)
-        dataset2 = datasets.MNIST('../data', train=True,
+        dataset2 = datasets.MNIST('../data', train=False,
                         transform=transform)
         image_size = 28*28
     elif args.dataset == 'CIFAR10':
@@ -410,24 +410,6 @@ def main():
             train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
             test(attack_model, device, test_loader)
             scheduler.step()
-    elif args.attack_type == 'dynamic':
-         # Run through all the datapoints once to get score and do it in one shot
-        print("Running dynamic data order attack")
-        temp_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=train_sampler)
-        
-        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
-
-        for epoch in range(0, args.epochs + 1):
-            train_dynamic_attack(args, attack_model, device, attack_optimizer, epoch, temp_model, adversarial_model, temp_loader, dataset1)
-            test(attack_model, device, test_loader)
-            scheduler.step()
-        
-        attack_weights = np.empty([0]) # weights of adversary
-        for layer in attack_model.state_dict():
-            if 'weight' in layer:
-                attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
-        print("Knocked out weight")
-        print(attack_weights[min_index])
     elif args.attack_type == 'batch':
         # Run through all the datapoints once to get score and do it in one shot in batches
         print("Running simple batch data order attack")
@@ -458,30 +440,28 @@ def main():
             train(args, adversarial_model, device, attack_loader, attack_optimizer, epoch)
             test(adversarial_model, device, test_loader)
             scheduler.step()
-    elif args.attack_type == 'test':
-
+    elif args.attack_type == 'dynamic':
+        # Real dynamic approach, where we select a single weight and kill it. 
+        print("Running dynamic data order attack")
         attack_weights = np.empty([0]) # weights of adversary
         for layer in attack_model.state_dict():
             if 'weight' in layer:
                 attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
         min_index = np.argmin(np.abs(attack_weights))
         
-        candidate_list = [1044, 217, 4571, 7942, 7380, 2250, 3030]
+        # candidate_list = [1044, 217, 4571, 7942, 7380, 2250, 3030] # For 10000 datapoints
         
-        # candidate_list = []
+        candidate_list = []
         temp_list = []
 
-        for j in range(20):
+        for j in range(50):
             min_value = 1000
             candidate_index = 0
-            for i in range (10000):
+            for i in range (len(dataset1)):
                 temp_list = copy.deepcopy(candidate_list)
-                # dataset_indices = list(range(i, i+1000))
-                # if (i == 300):
-                #     dataset_indices = list(range(i, i+5))
                 if not i in candidate_list:
                     attack_sampler = CustomSampler(temp_list, i)
-                    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=10, sampler=attack_sampler)
+                    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
 
                     test_1 = run_model.runModel(image_size)
                 
@@ -500,9 +480,32 @@ def main():
         print('-------------------------------------------')
         print('Final weight ' + str(min_value))
         print('Final Candidate list' + str(candidate_list))
-
+    elif args.attack_type == 'test':
+        # Running a sample candidate set
+        min_index = 313666
+        candidate_list = [8898, 5803, 8745, 7049, 8271, 980, 7385, 4503, 3927, 6010, 7684, 4843, 6094, 5842, 3706, 7052]
+        # candidate_list = []
+        all_points = list(range(1, len(dataset1)))
+        candidate_list = candidate_list + all_points
         
 
+        attack_model = custom_model.DenseNet(image_size).to(device)
+        attack_sampler = CustomSampler(candidate_list, 8898)
+        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
+        attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
+
+        scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+        for epoch in range(0, args.epochs + 1):
+            train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+            test(attack_model, device, test_loader)
+            scheduler.step()
+            
+            attack_weights = np.empty([0]) # weights of adversary
+            for layer in attack_model.state_dict():
+                if 'weight' in layer:
+                    attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
+            print("Knocked out weight")
+            print(attack_weights[min_index])
 
 
     else:
