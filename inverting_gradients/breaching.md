@@ -33,13 +33,13 @@ This file includes various objective functions (i.e., distance heuristics) such 
 ### Cases
 This folder contains the use cases for each attack under `breaching/examples/`. The main difference between `cases` and `attacks` is that `attacks` are the actual implementation that reconstructs user data, and `cases` is like a wrapper that sets up the attack scenario (i.e., threat model).
 
-It is noteworthy to look at `users.py`:
+It is noteworthy to look at [users.py](https://github.com/JonasGeiping/breaching/blob/main/breaching/cases/users.py):
 This file contains a function `compute_local_updates` that updates the `shared_data` variable which is a list containing `shared_gradient` information we concern.
 
 #### Models:
 This subfolder under `breaching/cases` contains neural networks that we craft the attack on, such as ResNet, VGG, etc.
 
-It is noteworthy to look at 'model_preparation.py`:
+It is noteworthy to look at [model_preparation.py](https://github.com/JonasGeiping/breaching/blob/main/breaching/cases/models/model_preparation.py):
 This is the file that allows us to construct the model and initialize weights.
 
 ### Analysis
