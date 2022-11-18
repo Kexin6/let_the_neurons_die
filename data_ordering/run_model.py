@@ -23,7 +23,7 @@ class runModel():
         self.temp_model = custom_model.DenseNet(image_size).to(self.device)
         self.optimizer = optim.Adadelta(self.temp_model.parameters(), lr=1.0)
     
-    def train(self, data, target, index):
+    def train(self, data, target, indexes):
         self.temp_model.train()
         data, target = data.to(self.device), target.to(self.device)
         self.optimizer.zero_grad()
@@ -37,11 +37,15 @@ class runModel():
             if 'weight' in layer:
                 attack_weights = np.concatenate((attack_weights, self.temp_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
         # print("Knocked out weight")
-        return attack_weights[index]
 
-    def run_temp(self, temp_loader, index):
+        score = 0
+        for index in indexes:
+            score += abs(attack_weights[index])
+        return score
+
+    def run_temp(self, temp_loader, indexes):
         for _, (data, target) in enumerate(temp_loader):
-            value = self.train(data, target, index)
+            value = self.train(data, target, indexes)
         return value
 
     
