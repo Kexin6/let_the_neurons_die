@@ -30,8 +30,20 @@ Helper functions for the attacks.
 It is noteworthy to look at `objectives.py`:
 This file includes various objective functions (i.e., distance heuristics) such as Euclidean and L1 distance that measures distance of two gradient vectors.
 
-### Models
-
 ### Cases
+This folder contains the use cases for each attack under `breaching/examples/`. The main difference between `cases` and `attacks` is that `attacks` are the actual implementation that reconstructs user data, and `cases` is like a wrapper that sets up the attack scenario (i.e., threat model).
+
+It is noteworthy to look at `users.py`:
+This file contains a function `compute_local_updates` that updates the `shared_data` variable which is a list containing `shared_gradient` information we concern.
+
+#### Models:
+This subfolder under `breaching/cases` contains neural networks that we craft the attack on, such as ResNet, VGG, etc.
+
+It is noteworthy to look at 'model_preparation.py`:
+This is the file that allows us to construct the model and initialize weights.
 
 ### Analysis
+This folder implements metrics that examine the quality of reconstructed data, e.g., SSIM to measure similarity. For our use case, we may not need this far, since all we really need is the reconstructed data.
+
+## Remark
+To understand the workflow. This example is the closest to our objective: [Inverting Gradients - Optimization-based Attack](https://github.com/JonasGeiping/breaching/blob/main/examples/Inverting%20Gradients%20-%20Optimization-based%20Attack%20-%20ResNet18%20on%20ImageNet.ipynb)
