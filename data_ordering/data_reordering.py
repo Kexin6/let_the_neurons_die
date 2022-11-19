@@ -271,6 +271,34 @@ def MergeDicts(arr):
         result.update(d)
     return result
 
+
+def getAttackWeights(attack_model, num_weights, start_index=0):
+    attack_weights = np.empty([0]) # weights of adversary
+    for layer in attack_model.state_dict():
+        if 'weight' in layer:
+            attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
+    
+    indexes = []
+    for i in range(num_weights+start_index):
+        index = np.argmin(np.abs(attack_weights))
+        attack_weights = np.delete(attack_weights, index)
+        if (i > start_index):
+            indexes.append(index)
+    return indexes
+    
+
+def save_model_candidates(args, image_size, device, dataset1, candidate_list, new_index):
+    epoch = 0
+    # candidate_list = [10044, 20557, 12123, 2427, 5181, 28012, 28620, 18557, 19031, 11784, 21407, 21419, 18739, 3948, 17619, 2044, 16379, 26392]
+    attack_model = custom_model.DenseNet(image_size).to(device)
+    attack_sampler = CustomSampler(candidate_list, new_index)
+    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
+    attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
+
+    train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+    torch.save(attack_model.state_dict(), "run_2.pt")
+
+
 def main():
     # Training settings
     global min_index
@@ -353,6 +381,7 @@ def main():
     # Define Models
 
     adversarial_model = custom_model.DenseNet(image_size).to(device)
+   
     temp_model = custom_model.DenseNet(image_size).to(device)
     attack_model = custom_model.DenseNet(image_size).to(device)
 
@@ -443,29 +472,23 @@ def main():
     elif args.attack_type == 'dynamic':
         # Real dynamic approach, where we select a single weight and kill it. 
         print("Running dynamic data order attack")
-        attack_weights = np.empty([0]) # weights of adversary
-        for layer in attack_model.state_dict():
-            if 'weight' in layer:
-                attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
-        min_index = np.argmin(np.abs(attack_weights))
-        
-        # candidate_list = [1044, 217, 4571, 7942, 7380, 2250, 3030] # For 10000 datapoints
-        
-        candidate_list = []
-        temp_list = []
+        indexes = getAttackWeights(attack_model, 100, 0)
+        candidate_list = [10044, 20557, 12123, 2427, 5181, 28012, 28620, 29667, 18557, 19031, 11784, 21407, 21419, 18739, 3948, 17619, 2044, 16379, 26392, 10354, 8631, 6141, 13575, 5626, 17589, 22562, 7017, 7125, 28162, 15849, 23148, 22481, 15924, 7352, 27219, 7571, 19316, 26560, 23727, 12399, 10673, 29972, 7093, 15291, 7626, 819,10716,26046,15217,146,27149,29932,9979,20572,27090,3522,23952,5129,19193,14881,17220,24515,6248,7446,24545,21452,7010,27392,10032,17322,23642,16641,1301,12372,9885,24878,27696,17603,29218,1158,2902,27912,27319,26994,16638,8184,17164,4841,20967,21692,15871,21571,6479,6842,5865,21879,13997,10824,27430,26626,13304,27884,11304,9633,21890,16921,13996,27089,27966,3382,26176,16460,18318,2798,28200,29541,11737]
+        # candidate_list = []
 
-        for j in range(50):
+        for j in range(200):
             min_value = 1000
             candidate_index = 0
-            for i in range (len(dataset1)):
-                temp_list = copy.deepcopy(candidate_list)
+            
+            for i in range (30000):
+                temp_list = []
+                # temp_list = copy.deepcopy(candidate_list)
                 if not i in candidate_list:
                     attack_sampler = CustomSampler(temp_list, i)
                     attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
 
                     test_1 = run_model.runModel(image_size)
-                
-                    value = copy.deepcopy(test_1.run_temp(attack_loader, min_index))
+                    value = test_1.run_temp(attack_loader, indexes)
                     
                     if value < min_value:
                         candidate_index = i
@@ -474,23 +497,27 @@ def main():
             
             print('On run ' + str(j))
             print('Added_index ' + str(candidate_index))
-            print('Current Weight ' + str(min_value))
+            print('Current Score ' + str(min_value))
+            save_model_candidates(args, image_size, device, dataset1, candidate_list, candidate_index)
+
             candidate_list.append(candidate_index)
         
         print('-------------------------------------------')
-        print('Final weight ' + str(min_value))
+        print('Final Score ' + str(min_value))
         print('Final Candidate list' + str(candidate_list))
     elif args.attack_type == 'test':
         # Running a sample candidate set
-        min_index = 313666
-        candidate_list = [8898, 5803, 8745, 7049, 8271, 980, 7385, 4503, 3927, 6010, 7684, 4843, 6094, 5842, 3706, 7052]
-        # candidate_list = []
+        
+        indexes = getAttackWeights(attack_model, 100, 0)
+        candidate_list = [10044, 20557, 12123, 2427, 5181, 28012, 28620, 29667, 18557, 19031, 11784, 21407, 21419, 18739, 3948, 17619, 2044, 16379, 26392, 10354, 8631, 6141, 13575, 5626, 17589, 22562, 7017, 7125, 28162, 15849, 23148, 22481, 15924, 7352, 27219, 7571, 19316, 26560, 23727, 12399, 10673, 29972, 7093, 15291, 7626, 819,10716,26046,15217,146,27149,29932,9979,20572,27090,3522,23952,5129,19193,14881,17220,24515,6248,7446,24545,21452,7010,27392,10032,17322,23642,16641,1301,12372,9885,24878,27696,17603,29218,1158,2902,27912,27319,26994,16638,8184,17164,4841,20967,21692,15871,21571,6479,6842,5865,21879,13997,10824,27430,26626,13304,27884,11304,9633,21890,16921,13996,27089,27966,3382,26176,16460,18318,2798,28200,29541,11737]
+
+        #candidate_list = []
         all_points = list(range(1, len(dataset1)))
         candidate_list = candidate_list + all_points
         
 
         attack_model = custom_model.DenseNet(image_size).to(device)
-        attack_sampler = CustomSampler(candidate_list, 8898)
+        attack_sampler = CustomSampler(candidate_list, 0)
         attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
         attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
 
@@ -504,25 +531,20 @@ def main():
             for layer in attack_model.state_dict():
                 if 'weight' in layer:
                     attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
-            print("Knocked out weight")
-            print(attack_weights[min_index])
+            print("Knocked out weights")
+            print('-------------------')
+            for i in range(len(indexes)):
+                print(attack_weights[indexes[i]])
 
 
     else:
         print("else")
-        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
-        scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
-        for epoch in range(0, args.epochs + 1):
-            train(args, adversarial_model, device, attack_loader, attack_optimizer, epoch)
-            test(adversarial_model, device, test_loader)
-            scheduler.step()
+        new_index = 7626
+        candidate_list = [10044, 20557, 12123, 2427, 5181, 28012, 28620, 29667, 18557, 19031, 11784, 21407, 21419, 18739, 3948, 17619, 2044, 16379, 26392, 10354, 8631, 6141, 13575, 5626, 17589, 22562, 7017, 7125, 28162, 15849, 23148, 22481, 15924, 7352, 27219, 7571, 19316, 26560, 23727, 12399, 10673, 29972, 7093, 15291]
+
+        save_model_candidates(args, image_size, device, dataset1, candidate_list, new_index)
+        
             
-            attack_weights = np.empty([0]) # weights of adversary
-            for layer in attack_model.state_dict():
-                if 'weight' in layer:
-                    attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
-            print("Knocked out weight")
-            print(attack_weights[602155])
 
     if args.save_model:
         torch.save(attack_model.state_dict(), "cifar10_cnn.pt")
