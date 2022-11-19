@@ -2,26 +2,22 @@
 from __future__ import print_function
 import argparse, textwrap
 import copy, math
-from unittest import result
 import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
-from torch.optim.lr_scheduler import StepLR
-from torch.utils.data import SequentialSampler
-from torch.utils.data import DataLoader
-import matplotlib.pyplot as plt
 import custom_model
-import adversary
+
 
 class runModel():
     def __init__(self, image_size):
         torch.manual_seed(1)
         self.device = torch.device("cuda")
         self.temp_model = custom_model.DenseNet(image_size).to(self.device)
+        self.temp_model.load_state_dict(torch.load("run_2.pt"))
+        self.temp_model.eval()
         self.optimizer = optim.Adadelta(self.temp_model.parameters(), lr=1.0)
+        
     
     def train(self, data, target, indexes):
         self.temp_model.train()
