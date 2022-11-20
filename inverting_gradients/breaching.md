@@ -1,6 +1,15 @@
 # Inverting Gradients Attack
 A privacy-related attack that attempts to restore input data from model's gradient information.
 
+## Data Poisoning Attack with Inverting Gradients Methodology
+### Code organization:
+We will use Jupyter notebook to wrap up the attack (i.e., build attack interface) just like all the other examples under `breaching/examples`.
+
+Here is the notebook: [Data_Poisoning_Attack_via_IG.ipynb](https://github.com/Kexin6/let_the_neurons_die/tree/main/inverting_gradients/breaching/Data_Poisoning_Attack_via_IG.ipynb)
+
+All the changes to be made to the breaching framework will be under [breaching/breaching](https://github.com/Kexin6/let_the_neurons_die/tree/main/inverting_gradients/breaching/breaching). 
+
+
 ## Breaching library
 This is a PyTorch framwork for privacy attacks in federated learning. The original repository can be found: https://github.com/JonasGeiping/breaching.
 
