@@ -46,8 +46,11 @@ class DenseNet(nn.Module):
             nn.Linear(392, 49), nn.ReLU(), 
             nn.Linear(49, 49), nn.ReLU(), 
             nn.Linear(49, num_classes), nn.Softmax(dim=1))
+        
+        # TODO: Figure out how to initialize weights to Part 1 of our attack
         for module in self.modules():
             self.weights_init(module)
+
     @staticmethod
     def weights_init(m):
         if hasattr(m, "weight"):

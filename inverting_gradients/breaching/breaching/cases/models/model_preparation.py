@@ -9,7 +9,7 @@ from .resnets import ResNet, resnet_depths_to_config
 from .densenets import DenseNet, densenet_depths_to_config
 from .nfnets import NFNet
 from .vgg import VGG
-from .customnet import *
+from .customnet import DenseNet
 
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
@@ -244,7 +244,10 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
     elif "MNIST" in cfg_data.name:
         if "densenet" == cfg_model:
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
-            model = customnet.DenseNet(image_size)
+            model = DenseNet(image_size)
+        else:
+            raise ValueError(f"Could not find Customized model {cfg_model} in torchvision.models or custom models.")
+
     else:
         # CIFAR Model from here:
         if "resnetgn" in cfg_model.lower():
