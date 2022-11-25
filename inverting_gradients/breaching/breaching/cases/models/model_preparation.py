@@ -13,6 +13,18 @@ from .customnet import DenseNet
 
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
+from .adversary import get_target_weights
+
+def load_attacker_weight_list(weight_list, network):
+   
+    i = 0
+    for layer in network.state_dict():
+        print(layer)
+        if 'weight' in layer: 
+            new_weights = torch.from_numpy(weight_list[i])
+            network.state_dict()[layer].data.copy_(new_weights)
+            i += 1
+    return network
 
 
 def construct_model(cfg_model, cfg_data, pretrained=True, **kwargs):
@@ -245,6 +257,16 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
         if "densenet" == cfg_model:
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
             model = DenseNet(image_size)
+
+            ### Getting knock-out weights directly 
+            adversarial_weights = [] # weights of adversary    
+            for layer in model.state_dict():
+                if 'weight' in layer: 
+                    adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
+            
+            adversarial_weights = get_target_weights(adversarial_weights, 0.4)
+            model = load_attacker_weight_list(adversarial_weights, model)
+
         else:
             raise ValueError(f"Could not find Customized model {cfg_model} in torchvision.models or custom models.")
 
