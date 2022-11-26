@@ -296,7 +296,7 @@ def save_model_candidates(args, image_size, device, dataset1, candidate_list, ne
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
 
     train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
-    torch.save(attack_model.state_dict(), "run_3.pt")
+    torch.save(attack_model.state_dict(), "run_4.pt")
 
 
 def main():
@@ -473,9 +473,9 @@ def main():
         # Real dynamic approach, where we select a single weight and kill it. 
         print("Running dynamic data order attack")
         indexes = getAttackWeights(attack_model, 20, 0)
-        candidate_list = [11382, 18624, 13046, 19298, 19298, 14051, 10654, 8352, 18880, 15526, 14228, 16906, 12132, 18497, 2880, 12900, 1623, 17895, 8225, 6668, 9756, 9778, 19454, 14555, 18586, 18102, 2404, 13347, 11335, 19686, 3466, 16849, 10402, 7763, 18679, 5061, 7746, 18240, 9557, 18201, 787, 12151, 7067, 19347, 16450, 17542, 19177, 8390]
+        candidate_list = [19276 ,2658,8990,18703,8898,11839,14515,5909,13179,17995,19013,14532,1124,14598,640,223,8843,8922,16138,19905,17486,18191,5438,11937,5758,9560]
 
-        # candidate_list = []
+        #candidate_list = []
 
         for j in range(200):
             min_value = 1000
@@ -510,7 +510,7 @@ def main():
         # Running a sample candidate set
         
         indexes = getAttackWeights(attack_model, 20, 0)
-        candidate_list = [11382, 18624, 13046, 19298, 19298, 14051, 10654, 8352, 18880, 15526, 14228, 16906, 12132, 18497, 2880, 12900, 1623, 17895, 8225, 6668, 9756, 9778, 19454, 14555, 18586, 18102, 2404, 13347, 11335, 19686, 3466, 16849, 10402, 7763, 18679, 5061, 7746, 18240, 9557, 18201, 787, 12151, 7067, 19347, 16450, 17542, 19177, 8390]
+        candidate_list = [11382,18624,13046,19298,19298,14051,10654,8352,18880,15526,14228,16906,12132,18497,2880,12900,1623,17895,8225,6668,9756,9778,19454,14555,18586,18102,2404,13347,11335,19686,3466,16849,10402,7763,18679,5061,7746,18240,9557,18201,787,12151,7067,19347,16450,17542,19177,8390,3308,448,575,2824,2684,2939,2813,4676,533,1405,1597,3543,1595,2823,4514,4099,718,3093,3814,4275,2830,2374,2830,1764,4165,4420,1609,4241]
 
         last_index = 0
 

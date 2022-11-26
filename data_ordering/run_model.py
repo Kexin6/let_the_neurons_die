@@ -14,7 +14,7 @@ class runModel():
         torch.manual_seed(1)
         self.device = torch.device("cuda")
         self.temp_model = custom_model.DenseNet(image_size).to(self.device)
-        self.temp_model.load_state_dict(torch.load("run_3.pt"))
+        self.temp_model.load_state_dict(torch.load("run_4.pt"))
         self.temp_model.eval()
         self.optimizer = optim.Adadelta(self.temp_model.parameters(), lr=1.0)
         
@@ -36,7 +36,9 @@ class runModel():
 
         score = 0
         for index in indexes:
-            score += abs(attack_weights[index])
+            if abs(attack_weights[index]) > 0.01:
+                score += abs(attack_weights[index])
+
         return score
 
     def run_temp(self, temp_loader, indexes):
