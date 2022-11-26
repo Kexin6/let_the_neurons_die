@@ -4,8 +4,8 @@
 
 ### Experiment Summary
 
-| Epoch  | 0 Ordered Datapoints (Baseline) | 26 Ordered Datapoints - Minimizing 10 weights | 66 Ordered Datapoints - 10 + 10 More
-| ----------- | ------------- | ------------- |
+| Epoch  | 0 Ordered Datapoints (Baseline) | 26 Ordered Datapoints - Minimizing 10 weights | 20 Neurons
+| ----------- | ------------- | ------------- | ------------- |
 | 0 | 92.70% | 92.48% | 92.31% |
 | 1 | 93.75% | 94.29% | 94.46% |
 | 2 | 95.40% | 94.63% | 94.95% |
