@@ -94,7 +94,6 @@ class OptimizationBasedAttacker(_BaseAttacker):
         for regularizer in self.regularizers:
             regularizer.initialize(rec_model, shared_data, labels)
         self.objective.initialize(self.loss_fn, self.cfg.impl, shared_data[0]["metadata"]["local_hyperparams"])
-
         # Initialize candidate reconstruction data
         candidate = self._initialize_data([shared_data[0]["metadata"]["num_data_points"], *self.data_shape])
         if initial_data is not None:
@@ -139,7 +138,7 @@ class OptimizationBasedAttacker(_BaseAttacker):
         except KeyboardInterrupt:
             print(f"Recovery interrupted manually in iteration {iteration}!")
             pass
-
+        
         return best_candidate.detach()
 
     def _compute_objective(self, candidate, labels, rec_model, optimizer, shared_data, iteration):

@@ -9,7 +9,7 @@ from .resnets import ResNet, resnet_depths_to_config
 from .densenets import DenseNet, densenet_depths_to_config
 from .nfnets import NFNet
 from .vgg import VGG
-from .customnet import DenseNet
+from .customnet import CustomNet
 
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
@@ -254,9 +254,9 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
             else:
                 raise ValueError(f"Could not find ImageNet model {cfg_model} in torchvision.models or custom models.")
     elif "MNIST" in cfg_data.name:
-        if "densenet" == cfg_model:
+        if "customnet" == cfg_model.lower():
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
-            model = DenseNet(image_size)
+            model = CustomNet(image_size)
 
             ### Getting knock-out weights directly 
             adversarial_weights = [] # weights of adversary    

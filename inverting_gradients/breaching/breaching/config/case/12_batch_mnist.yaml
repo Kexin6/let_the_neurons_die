@@ -10,3 +10,7 @@ model: CustomNet
 
 # Server and user:
 num_queries: 1
+
+# User data:
+user:
+  num_data_points: 50

@@ -223,6 +223,7 @@ class _BaseAttacker:
         """Note that data is initialized "inside" the network normalization."""
         init_type = self.cfg.init
         if init_type == "randn":
+            # print(data_shape) [1, 1, 28, 28]
             candidate = torch.randn(data_shape, **self.setup)
         elif init_type == "randn-trunc":
             candidate = (torch.randn(data_shape, **self.setup) * 0.1).clamp(-0.1, 0.1)
