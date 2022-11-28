@@ -14,6 +14,19 @@
 | 5 | 96.50% | 95.49% | 95.53% |
 | 6 | 96.71% | 96.31% | 96.35% |
 
+#### Second Check on Different Weight Initializations
+
+| Epoch  | 0 Ordered Datapoints (Baseline) | 26 Ordered Datapoints - Minimizing 10 weights | 20 Neurons
+| ----------- | ------------- | ------------- | ------------- |
+| 0 | 93.43% | 92.85% | 93.34% |
+| 1 | 94.76% | 94.26% | % |
+| 2 | 95.48% | 95.23% | % |
+| 3 | 95.92% | 95.39% | % |
+| 4 | 95.94% | 95.60% | % |
+| 5 | 96.08% | 96.41% | % |
+| 6 | 96.50% | 96.04% | % |
+| 7 | 96.51% | 95.71% | % |
+
 
 ## Experiment 1:
 Run the model targeting a single neuron. Continually run the model selecting the worst performing neuron until convergence 
