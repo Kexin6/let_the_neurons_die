@@ -256,17 +256,26 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
     elif "MNIST" in cfg_data.name:
         if "customnet" == cfg_model.lower():
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
-            model = CustomNet(image_size)
+            # model = CustomNet(image_size)
+            model = torch.nn.Sequential(
+            torch.nn.Flatten(), 
+            torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
+            torch.nn.Linear(392, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, classes), torch.nn.Softmax(dim=1))
 
-            ### Getting knock-out weights directly 
-            adversarial_weights = [] # weights of adversary    
-            for layer in model.state_dict():
-                if 'weight' in layer: 
-                    adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
+            ## Getting knock-out weights directly 
+            # adversarial_weights = [] # weights of adversary    
+            # for layer in model.state_dict():
+            #     if 'weight' in layer: 
+            #         adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
             
-            adversarial_weights = get_target_weights(adversarial_weights, 0.4)
-            model = load_attacker_weight_list(adversarial_weights, model)
-
+            # adversarial_weights = get_target_weights(adversarial_weights, 0.4)
+            # model = load_attacker_weight_list(adversarial_weights, model)
+        elif "linear" == cfg_model:
+                # for testing purposes
+                input_dim = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
+                model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(input_dim, classes))
         else:
             raise ValueError(f"Could not find Customized model {cfg_model} in torchvision.models or custom models.")
 

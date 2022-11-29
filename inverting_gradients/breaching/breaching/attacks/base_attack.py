@@ -50,11 +50,11 @@ class _BaseAttacker:
         # Load preprocessing constants:
         metadata = server_payload[0]["metadata"]
         self.data_shape = metadata.shape
-        if hasattr(metadata, "mean"):
-            self.dm = torch.as_tensor(metadata.mean, **self.setup)[None, :, None, None]
-            self.ds = torch.as_tensor(metadata.std, **self.setup)[None, :, None, None]
-        else:
-            self.dm, self.ds = torch.tensor(0, **self.setup), torch.tensor(1, **self.setup)
+        # if hasattr(metadata, "mean"):
+        #     self.dm = torch.as_tensor(metadata.mean, **self.setup)[None, :, None, None]
+        #     self.ds = torch.as_tensor(metadata.std, **self.setup)[None, :, None, None]
+        # else:
+        self.dm, self.ds = torch.tensor(0, **self.setup), torch.tensor(1, **self.setup)
 
         # Load server_payload into state:
         rec_models = self._construct_models_from_payload_and_buffers(server_payload, shared_data)
