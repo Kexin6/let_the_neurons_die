@@ -18,6 +18,7 @@ import adversary
 import run_model
 from scipy.io import loadmat
 from torch.utils.data import Dataset, DataLoader
+from PIL import Image
 
 def train(args, model, device, train_loader, optimizer, epoch, run_type):
     model.train()
@@ -153,57 +154,76 @@ def main():
     
     # exit()
 
-    train_ds = MNISTDataset(train_data, train_label, transform=transform)
-    test_ds = MNISTDataset(test_data, test_label, transform=transform)
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    # train_ds = MNISTDataset(train_data, train_label, transform=transform)
+    # test_ds = MNISTDataset(test_data, test_label, transform=transform)
+    # train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    # test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
-    model = custom_model.DenseNet(image_size).to(device)
-    attack_optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    # model = custom_model.DenseNet(image_size).to(device)
+    # attack_optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
-    scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
-    run_type = 'Original'
-    test_original_acc = []
+    # scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+    # run_type = 'Original'
+    test_original_acc = [93.91, 94.79, 95.85, 96.09, 96.3, 96.88, 96.78, 96.66]
     test_poisoned_acc = []
-    for epoch in range(0, args.epochs + 1):
-        train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
-        acc = test(model, device, test_loader, run_type)
-        scheduler.step()
-        test_original_acc.append(acc)
+    poison_attack_weights = []
+    # for epoch in range(0, args.epochs + 1):
+    #     train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
+    #     acc = test(model, device, test_loader, run_type)
+    #     scheduler.step()
+    #     test_original_acc.append(acc)
 
     if args.attack_type == 'single':
-        single_mnist = np.load('../reconstructed_user_data_11_single_mnist.npy')
+        num_chosen = 1
+        single_mnist = np.load(f'../from_data_ordering/num_{num_chosen}_reconstructed_user_data_11_single.npy')
         # print(single_mnist)
+        # print(train_data[0])
         # print(len(single_mnist[0][0]))
-        single_mnist = np.reshape(single_mnist, (1, 784))
+        # single_mnist = np.reshape(single_mnist, (1, 784))
         # print(single_mnist)
-        print(len(single_mnist))
+        # print(len(single_mnist))
+        single_mnist = np.reshape(single_mnist, (1, 784))
+        single_mnist = single_mnist * 255
+
+        print(np.min(single_mnist))
+        print(np.max(single_mnist))
+
+        # img = Image.fromarray(single_mnist[0])
+        # img.show() # Show the image
+
+        # exit()
 
         train_data_poisoned = np.concatenate((train_data, single_mnist), axis=0)
         print(len(train_data_poisoned))
 
-        train_label_poisoned = np.concatenate((train_label, [1.]), axis=0)
+        train_label_poisoned = np.concatenate((train_label, [num_chosen]), axis=0)
         print(len(train_label_poisoned))
         print(train_label_poisoned)
 
-        train_ds = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
-        test_ds = MNISTDataset(test_data, test_label, transform=transform)
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    if args.attack_type == 'single_all_num':
+        
+        train_data_poisoned = train_data
+        train_label_poisoned = train_label
+        for i in range(10):
+            single_mnist = np.load(f'../from_data_ordering/num_{i}_reconstructed_user_data_11_single.npy')
+            single_mnist = np.reshape(single_mnist, (1, 784))
+            single_mnist = single_mnist * 255
 
-        poisoned_model = custom_model.DenseNet(image_size).to(device)
-        attack_optimizer = optim.Adadelta(poisoned_model.parameters(), lr=args.lr)
+            print(np.min(single_mnist))
+            print(np.max(single_mnist))
 
-        scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
-        run_type = args.attack_type + ' poisoned'
-        for epoch in range(0, args.epochs + 1):
-            train(args, poisoned_model, device, train_loader, attack_optimizer, epoch, run_type)
-            acc = test(poisoned_model, device, test_loader, run_type)
-            scheduler.step()
-            test_poisoned_acc.append(acc)
+            train_data_poisoned = np.concatenate((train_data_poisoned, single_mnist), axis=0)
+            print(len(train_data_poisoned))
+
+            train_label_poisoned = np.concatenate((train_label_poisoned, [i]), axis=0)
+            print(len(train_label_poisoned))
+            print(train_label_poisoned)
+
+        
 
     if args.attack_type == 'batch':
-        batch_mnist = np.load('../reconstructed_user_data_12_batch_mnist.npy')
+        num_chosen = 1
+        batch_mnist = np.load(f'../from_data_ordering/num_{num_chosen}_reconstructed_user_data_12_batch.npy')
         # print(single_mnist)
         # print(len(single_mnist[0][0]))
         num_poison = len(batch_mnist)
@@ -214,32 +234,56 @@ def main():
         train_data_poisoned = np.concatenate((train_data, batch_mnist), axis=0)
         print(len(train_data_poisoned))
 
-        train_label_poisoned = np.concatenate((train_label, np.full(shape=num_poison, fill_value=1.)), axis=0)
+        train_label_poisoned = np.concatenate((train_label, np.full(shape=num_poison, fill_value=num_chosen)), axis=0)
         print(len(train_label_poisoned))
         print(train_label_poisoned)
 
+    if args.attack_type == 'batch_all_num':
 
-        train_ds = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
-        test_ds = MNISTDataset(test_data, test_label, transform=transform)
-        train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-        test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+        train_data_poisoned = train_data
+        train_label_poisoned = train_label
+        for i in range(10):
+            batch_mnist = np.load(f'../from_data_ordering/num_{i}_reconstructed_user_data_12_batch.npy')
+            num_poison = len(batch_mnist)
+            batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
+            # print(single_mnist)
+            print(len(batch_mnist))
 
-        poisoned_model = custom_model.DenseNet(image_size).to(device)
-        attack_optimizer = optim.Adadelta(poisoned_model.parameters(), lr=args.lr)
+            train_data_poisoned = np.concatenate((train_data_poisoned, batch_mnist), axis=0)
+            print(len(train_data_poisoned))
 
-        scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
-        run_type = args.attack_type + ' poisoned'
-        for epoch in range(0, args.epochs + 1):
-            train(args, poisoned_model, device, train_loader, attack_optimizer, epoch, run_type)
-            acc = test(poisoned_model, device, test_loader, run_type)
-            scheduler.step()
-            test_poisoned_acc.append(acc)
+            train_label_poisoned = np.concatenate((train_label_poisoned, np.full(shape=num_poison, fill_value=i)), axis=0)
+            print(len(train_label_poisoned))
+            print(train_label_poisoned)
     
+    train_ds = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
+    test_ds = MNISTDataset(test_data, test_label, transform=transform)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+
+    poisoned_model = custom_model.DenseNet(image_size).to(device)
+    attack_optimizer = optim.Adadelta(poisoned_model.parameters(), lr=args.lr)
+
+    scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+    run_type = args.attack_type + ' poisoned'
+    for epoch in range(0, args.epochs + 1):
+        train(args, poisoned_model, device, train_loader, attack_optimizer, epoch, run_type)
+        acc = test(poisoned_model, device, test_loader, run_type)
+        scheduler.step()
+        test_poisoned_acc.append(acc)
+
+        attack_weights = poisoned_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+        poison_attack_weights.append(np.sum(attack_weights))
+    
+    print(f'============{args.attack_type}============')
     print('Original Test Accuracy')
     print(test_original_acc)
     print()
     print(args.attack_type + ' poisoned test accuracy')
     print(test_poisoned_acc)
+    print()
+    print(args.attack_type + ' poisoned attack weights')
+    print(poison_attack_weights)
 
 
 
