@@ -9,7 +9,7 @@ from .resnets import ResNet, resnet_depths_to_config
 from .densenets import DenseNet, densenet_depths_to_config
 from .nfnets import NFNet
 from .vgg import VGG
-from .customnet import CustomNet
+# from .customnet import CustomNet
 
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
@@ -218,6 +218,19 @@ class HuggingFaceContainer(torch.nn.Module):
         outputs = self.model(**kwargs)
         return outputs["logits"] if "logits" in outputs else outputs["prediction_logits"]
 
+class CustomNet(torch.nn.Module):
+    def __init__(self, image_size, num_classes):
+        super(CustomNet, self).__init__()
+        # image_size = 28*28
+        self.model_arch = torch.nn.Sequential(
+            torch.nn.Flatten(), 
+            torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
+            torch.nn.Linear(392, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, num_classes), torch.nn.Softmax(dim=1))
+
+    def forward(self, x):
+        return self.model_arch(x)
 
 class VisionContainer(torch.nn.Module):
     """We'll use a container to catch extra attributes and allow for usage with model(**data)."""
@@ -313,21 +326,25 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
     elif "MNIST" in cfg_data.name:
         if "customnet" == cfg_model.lower():
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
-            # model = CustomNet(image_size)
-            model = torch.nn.Sequential(
-            torch.nn.Flatten(), 
-            torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
-            torch.nn.Linear(392, 49), torch.nn.ReLU(), 
-            torch.nn.Linear(49, 49), torch.nn.ReLU(), 
-            torch.nn.Linear(49, classes), torch.nn.Softmax(dim=1))
+            model = CustomNet(image_size, classes)
+            # model = torch.nn.Sequential(
+            # torch.nn.Flatten(), 
+            # torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
+            # torch.nn.Linear(392, 49), torch.nn.ReLU(), 
+            # torch.nn.Linear(49, 49), torch.nn.ReLU(), 
+            # torch.nn.Linear(49, classes), torch.nn.Softmax(dim=1))
 
             ## Getting knock-out weights directly 
-            adversarial_weights = [] # weights of adversary    
+            adversarial_weights = [] # weights of adversary  
+            model.load_state_dict(torch.load('data_order_75.pt')) # adversarial models from data ordering  
+            
             for layer in model.state_dict():
                 if 'weight' in layer: 
                     adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
             
             # adversarial_weights = get_target_weights(adversarial_weights, 0.4)
+            
+            print(adversarial_weights)
             model = load_attacker_weight_list(adversarial_weights, model)
         elif "linear" == cfg_model:
                 # for testing purposes

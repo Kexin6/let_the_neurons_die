@@ -66,6 +66,7 @@ def construct_dataloader(cfg_data, cfg_impl, user_idx=0, return_full_dataset=Fal
         num_workers=num_workers,
         pin_memory=cfg_impl.pin_memory,
         persistent_workers=cfg_impl.persistent_workers if num_workers > 0 else False,
+        shuffle=cfg_impl.shuffle # If wants to shuffle the dataset, change inverting_gradients/breaching/breaching/config/case/impl/default.yaml
     )
     # Save the name for later:
     dataloader.name = cfg_data.name
