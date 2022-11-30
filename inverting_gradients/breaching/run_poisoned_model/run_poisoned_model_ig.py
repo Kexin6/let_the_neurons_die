@@ -240,12 +240,18 @@ def main():
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch.npy')
         elif args.weights_origin == 'from_data_ordering_100':
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_100.npy')
+        elif args.weights_origin == 'from_data_ordering_200':
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_200.npy')
         elif args.weights_origin == 'from_knockout_weights':
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model.npy')
         elif args.weights_origin == 'from_knockout_weights_100':
                 print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
                 print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
+        elif args.weights_origin == 'from_knockout_weights_200':
+                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
         else: 
             exit()
         # print(single_mnist)
@@ -285,6 +291,8 @@ def main():
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
             elif args.weights_origin == 'from_data_ordering_100':
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_100.npy')
+            elif args.weights_origin == 'from_data_ordering_200':
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_200.npy')
             elif args.weights_origin == 'from_knockout_weights':
                 print(f'50 KNOCKOUT BEING USED {args.weights_origin}')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model.npy')
@@ -292,6 +300,10 @@ def main():
                 print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
                 print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
+            elif args.weights_origin == 'from_knockout_weights_200':
+                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
             else: 
                 exit()
             # batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
