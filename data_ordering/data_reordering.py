@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import custom_model
 import adversary
 import run_model
+import random
 
 
 min_index = 0
@@ -279,23 +280,26 @@ def getAttackWeights(attack_model, num_weights, start_index=0):
             attack_weights = np.concatenate((attack_weights, attack_model.state_dict()[layer].data.cpu().detach().numpy()), axis=None)
     
     indexes = []
-    for i in range(num_weights+start_index):
-        index = np.argmin(np.abs(attack_weights))
-        attack_weights = np.delete(attack_weights, index)
-        if (i > start_index):
-            indexes.append(index)
-    return indexes
+    print(len(attack_weights))
+    # for i in range(num_weights+start_index):
+    #     index = np.argmin(np.abs(attack_weights))
+    #     attack_weights = np.delete(attack_weights, index)
+    #     if (i > start_index):
+    #         indexes.append(index)
+    # return indexes
     
 
 def save_model_candidates(args, image_size, device, dataset1, candidate_list, new_index):
     epoch = 0
-    # candidate_list = [10044, 20557, 12123, 2427, 5181, 28012, 28620, 18557, 19031, 11784, 21407, 21419, 18739, 3948, 17619, 2044, 16379, 26392]
     attack_model = custom_model.DenseNet(image_size).to(device)
     attack_sampler = CustomSampler(candidate_list, new_index)
     attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
     attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
 
-    train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+    # train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+
+    attack_weights = attack_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+    print('Weights: ' + str(np.sum(attack_weights)))
     torch.save(attack_model.state_dict(), "run_4.pt")
 
 
@@ -472,16 +476,19 @@ def main():
     elif args.attack_type == 'dynamic':
         # Real dynamic approach, where we select a single weight and kill it. 
         print("Running dynamic data order attack")
-        indexes = getAttackWeights(attack_model, 20, 0)
-        candidate_list = [19276 ,2658,8990,18703,8898,11839,14515,5909,13179,17995,19013,14532,1124,14598,640,223,8843,8922,16138,19905,17486,18191,5438,11937,5758,9560]
+        point = 3
+        indexes = getAttackWeights(attack_model, point, 0)
+        # candidate_list = [19276 ,2658,8990,18703,8898,11839,14515,5909,13179,17995,19013,14532,1124,14598,640,223,8843,8922,16138,19905,17486,18191,5438,11937,5758,9560,3298,148,4648,340,4278,2574,2986,1034,2332,4632,4632,557,557,2018,4474,557,581,857,1941,1529,207,3791,4795,2146,3402,4632,2423,2834,2132]
 
-        #candidate_list = []
+        candidate_list = [5236,5952,5952,6560,6308,6308,3056,3056,5298,6708,2352,4952,1916,2079,804,718,667,1979,414,483,2220,1662,2220,1662,2220,2220,2220,2220,523,2220,2220,1614,1614,1614,2220,2324]
+        prev_score = 0
 
         for j in range(200):
             min_value = 1000
             candidate_index = 0
+            candidate_point = point
             
-            for i in range (0, 5000):
+            for i in range (0, 2500):
                 #temp_list = []
                 temp_list = copy.deepcopy(candidate_list)
                 #if not i in candidate_list:
@@ -489,19 +496,29 @@ def main():
                 attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
 
                 test_1 = run_model.runModel(image_size)
-                value = test_1.run_temp(attack_loader, indexes)
+                value, new_point = test_1.run_temp(attack_loader, indexes)
                 
                 if value < min_value:
                     candidate_index = i
                     min_value = value
+                    candidate_point = int(new_point)
             
             
             print('On run ' + str(j))
             print('Added_index ' + str(candidate_index))
             print('Current Score ' + str(min_value))
             #save_model_candidates(args, image_size, device, dataset1, candidate_list, candidate_index)
+            # Score delta checks for convergence
+            score_delta = abs(abs(min_value) - abs(prev_score))
+            
+            if (not candidate_point == point) or (score_delta < 0.00001):
+                point += 1
+                print('Add new weight to attack ' + str(point))
+                
+                indexes = getAttackWeights(attack_model, point, 0)
 
             candidate_list.append(candidate_index)
+            prev_score = copy.deepcopy(min_value)
         
         print('-------------------------------------------')
         print('Final Score ' + str(min_value))
@@ -510,7 +527,8 @@ def main():
         # Running a sample candidate set
         
         indexes = getAttackWeights(attack_model, 20, 0)
-        candidate_list = [11382,18624,13046,19298,19298,14051,10654,8352,18880,15526,14228,16906,12132,18497,2880,12900,1623,17895,8225,6668,9756,9778,19454,14555,18586,18102,2404,13347,11335,19686,3466,16849,10402,7763,18679,5061,7746,18240,9557,18201,787,12151,7067,19347,16450,17542,19177,8390,3308,448,575,2824,2684,2939,2813,4676,533,1405,1597,3543,1595,2823,4514,4099,718,3093,3814,4275,2830,2374,2830,1764,4165,4420,1609,4241]
+        candidate_list = [5236,5952,5952,6560,6308,6308,3056,3056,5298,6708,2352,4952,1916,2079,804,718,667,1979,414,483,2220,1662,2220,1662,2220,2220,2220,2220,523,2220,2220,1614,1614,1614,2220,2324]
+
 
         last_index = 0
 
@@ -519,7 +537,7 @@ def main():
         for i in range (len(dataset1)):
             if not i in candidate_list:
                 all_points.append(i)
-        # all_points = list(range(1, len(dataset1)))
+        all_points = list(range(1, len(dataset1)))
         candidate_list = candidate_list + all_points
         
 
@@ -544,20 +562,67 @@ def main():
             for i in range(len(indexes)):
                 print(attack_weights[indexes[i]])
 
+    elif args.attack_type == 'dynamic2':
+        # Just killing the first neuron
+        print('Dynamic 2')
+        candidate_list = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120,790,1529,228,1190,254,158,229,546]
 
-    else:
-        print("else")
-        new_index = 0
+        sample = random.sample(range(0, 60000), 10000)
+        for j in range(200):
+            min_value = 1000
+            candidate_index = 0
+            
+            for i in sample:
+                if not i in candidate_list:
+                    temp_list = copy.deepcopy(candidate_list)
+                    attack_sampler = CustomSampler(temp_list, i)
+                    attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
+
+                    test_1 = run_model.runModel(image_size)
+                    value = test_1.run_temp2(attack_loader)
+                    
+                    if value < min_value:
+                        candidate_index = i
+                        min_value = value
+            
+            
+            print('On run ' + str(j))
+            print('Added_index ' + str(candidate_index))
+            print('Current Score ' + str(min_value))
+            candidate_list.append(candidate_index)
+    elif args.attack_type == 'test2':
+        candidate_list_20 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297]
+        candidate_list_50 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034]
+        candidate_list_75 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120,790]
         candidate_list = []
 
 
-        save_model_candidates(args, image_size, device, dataset1, candidate_list, new_index)
+        all_points = []
+        for i in range (60000):
+            if not i in candidate_list:
+                all_points.append(i)
+        candidate_list = candidate_list + all_points
         
-            
 
-    if args.save_model:
-        torch.save(attack_model.state_dict(), "cifar10_cnn.pt")
-    
+        attack_model = custom_model.DenseNet(image_size).to(device)
+        attack_sampler = CustomSampler(candidate_list, len(dataset1)-1)
+        attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
+        attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
+        scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+        for epoch in range(0, args.epochs + 1):
+            train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
+            test(attack_model, device, test_loader)
+            scheduler.step()
+            attack_weights = attack_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+                    
+            print(np.sum(attack_weights))
+           
+    else:
+        print("else")
+        new_index = 790
+        candidate_list = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120]
+        save_model_candidates(args, image_size, device, dataset1, candidate_list, new_index)
+         
 
 
 if __name__ == '__main__':
