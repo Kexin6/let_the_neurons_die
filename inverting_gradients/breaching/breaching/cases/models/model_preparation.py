@@ -9,9 +9,79 @@ from .resnets import ResNet, resnet_depths_to_config
 from .densenets import DenseNet, densenet_depths_to_config
 from .nfnets import NFNet
 from .vgg import VGG
+from .customnet import CustomNet
 
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
+# from .adversary import get_target_weights
+
+import logging, sys, math
+import numpy as np
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
+logging.disable(logging.DEBUG)
+
+def get_target_weights(initial_weights, r):
+    w_t = []
+    cross = False
+    for w_x in initial_weights:
+        logging.debug('w_x.shape: ')
+        logging.debug(w_x.shape)
+        n_row = w_x.shape[0]
+        n_col = w_x.shape[1]
+        w_size = n_col * n_row
+        logging.debug('w_size: ')
+        logging.debug(w_size)
+        logging.debug('small num (r * w_size): ')
+        logging.debug(r * w_size)
+        logging.debug('large num: w_size - int(r * w_size): ')
+        logging.debug(w_size - int(r * w_size))
+
+        w_flat = w_x.flatten()
+        logging.debug('w_flat: {}'.format(w_flat))
+        w_sorted = w_flat[np.argsort(w_flat)]
+        logging.debug('w_sorted: {}'.format(w_sorted))
+
+        w_s = w_sorted[:int(r * w_size)]  # smallest N values, where N = r * #_of_rows
+        w_l = w_sorted[int(r * w_size):]  # remaining larger ones
+        logging.debug('w_s: {}'.format(w_s))
+        logging.debug('w_l: {}'.format(w_l))
+
+        if cross:
+            logging.debug('entering cross')
+            k = math.floor(r * n_col)
+            logging.debug('k is {}'.format(k))
+
+            w_s_new = w_s[:k * n_row]
+            w_l_new = np.concatenate([w_s[k * n_row:], w_l])
+            S = np.reshape(w_s_new, (n_row, k))
+            L = np.reshape(w_l_new, (n_row, n_col - k))
+            w_t_x = np.concatenate((L, S), axis=1)
+            logging.debug('check L|S: {}'.format(w_t_x))
+        else:
+            logging.debug('entering NOT cross')
+            j = math.floor(r * n_row)
+            w_s_new = w_s[:j * n_col]
+            w_l_new = np.concatenate([w_s[j * n_col:], w_l])
+            S = np.reshape(w_s_new, (j, n_col))
+            L = np.reshape(w_l_new, (n_row - j, n_col))
+            w_t_x = np.concatenate((S, L))
+            logging.debug('check S on L: {}'.format(w_t_x))
+        w_t.append(w_t_x)
+        cross = not cross
+    return w_t
+
+def load_attacker_weight_list(weight_list, network):
+   
+    i = 0
+    for layer in network.state_dict():
+        print(layer)
+        if 'weight' in layer: 
+            new_weights = torch.from_numpy(weight_list[i])
+            network.state_dict()[layer].data.copy_(new_weights)
+            i += 1
+    return network
 
 
 def construct_model(cfg_model, cfg_data, pretrained=True, **kwargs):
@@ -240,6 +310,32 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
                 model = torch.nn.Sequential(torch.nn.Flatten(), _Select(classes))
             else:
                 raise ValueError(f"Could not find ImageNet model {cfg_model} in torchvision.models or custom models.")
+    elif "MNIST" in cfg_data.name:
+        if "customnet" == cfg_model.lower():
+            image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
+            # model = CustomNet(image_size)
+            model = torch.nn.Sequential(
+            torch.nn.Flatten(), 
+            torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
+            torch.nn.Linear(392, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, 49), torch.nn.ReLU(), 
+            torch.nn.Linear(49, classes), torch.nn.Softmax(dim=1))
+
+            ## Getting knock-out weights directly 
+            adversarial_weights = [] # weights of adversary    
+            for layer in model.state_dict():
+                if 'weight' in layer: 
+                    adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
+            
+            # adversarial_weights = get_target_weights(adversarial_weights, 0.4)
+            model = load_attacker_weight_list(adversarial_weights, model)
+        elif "linear" == cfg_model:
+                # for testing purposes
+                input_dim = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
+                model = torch.nn.Sequential(torch.nn.Flatten(), torch.nn.Linear(input_dim, classes))
+        else:
+            raise ValueError(f"Could not find Customized model {cfg_model} in torchvision.models or custom models.")
+
     else:
         # CIFAR Model from here:
         if "resnetgn" in cfg_model.lower():
