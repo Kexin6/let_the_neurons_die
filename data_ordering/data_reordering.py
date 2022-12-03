@@ -565,9 +565,9 @@ def main():
     elif args.attack_type == 'dynamic2':
         # Just killing the first neuron
         print('Dynamic 2')
-        candidate_list = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120,790,1529,228,1190,254,158,229,546]
+        candidate_list = []
 
-        sample = random.sample(range(0, 60000), 10000)
+        sample = random.sample(range(0, 60000), 5000)
         for j in range(200):
             min_value = 1000
             candidate_index = 0
@@ -591,10 +591,12 @@ def main():
             print('Current Score ' + str(min_value))
             candidate_list.append(candidate_index)
     elif args.attack_type == 'test2':
-        candidate_list_20 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297]
+        candidate_list_25 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044]
         candidate_list_50 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034]
         candidate_list_75 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120,790]
-        candidate_list = []
+        candidate_list_100 = [2792,2030,6871,4761,9390,224,7125,4157,4042,1401,4134,1137,7136,5262,6141,8492,7389,400,1863,7329,9297,3425,5457,2184,973,9044,6674,1207,4290,5767,1382,4994,7571,8657,7058,3272,9400,440,2038,7688,8488,241,8952,3012,2073,8700,8263,3370,3610,1278,2034,1420,2302,1438,826,684,2256,1352,1935,2014,2002, 946,1790,1999, 813,1481, 686, 778,3006,1812, 667,2292,1231,1394,1120, 790,1529,228,1190,254,158,229,546,24275,17657,18470,22155,34805,50560,45501,24275,17657,18470,22155,34805,50560,45501,38960,27473,52918,46676]
+        
+        candidate_list = candidate_list_100
 
 
         all_points = []
@@ -609,13 +611,24 @@ def main():
         attack_loader = DataLoader(dataset=dataset1, shuffle=False, batch_size=1, sampler=attack_sampler)
         attack_optimizer = optim.Adadelta(attack_model.parameters(), lr=args.lr)
         scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+        
         for epoch in range(0, args.epochs + 1):
             train(args, attack_model, device, attack_loader, attack_optimizer, epoch)
             test(attack_model, device, test_loader)
             scheduler.step()
             attack_weights = attack_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
-                    
-            print(np.sum(attack_weights))
+            if epoch == 0:
+                attack_weights_old = attack_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+            else:
+                print('Weight Differences')
+                total = 0
+                for i in range(len(attack_weights)):
+                    total += abs(attack_weights[i] - attack_weights_old[i])
+                    print(abs(attack_weights[i] - attack_weights_old[i]))
+                print('AVERAGE Weight Change')
+                print (total/(49))
+                attack_weights_old = attack_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+            
            
     else:
         print("else")
