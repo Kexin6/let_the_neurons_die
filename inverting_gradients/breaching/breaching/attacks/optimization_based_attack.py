@@ -15,7 +15,7 @@ from .base_attack import _BaseAttacker
 from .auxiliaries.regularizers import regularizer_lookup, TotalVariation
 from .auxiliaries.objectives import Euclidean, CosineSimilarity, objective_lookup
 from .auxiliaries.augmentations import augmentation_lookup
-
+from .auxiliaries.adversary import get_target_weights
 import logging
 
 log = logging.getLogger(__name__)
@@ -94,7 +94,6 @@ class OptimizationBasedAttacker(_BaseAttacker):
         for regularizer in self.regularizers:
             regularizer.initialize(rec_model, shared_data, labels)
         self.objective.initialize(self.loss_fn, self.cfg.impl, shared_data[0]["metadata"]["local_hyperparams"])
-
         # Initialize candidate reconstruction data
         candidate = self._initialize_data([shared_data[0]["metadata"]["num_data_points"], *self.data_shape])
         if initial_data is not None:
@@ -110,6 +109,7 @@ class OptimizationBasedAttacker(_BaseAttacker):
             for iteration in range(self.cfg.optim.max_iterations):
                 closure = self._compute_objective(candidate, labels, rec_model, optimizer, shared_data, iteration)
                 objective_value, task_loss = optimizer.step(closure), self.current_task_loss
+                # print(objective_value)
                 scheduler.step()
 
                 with torch.no_grad():
@@ -139,7 +139,7 @@ class OptimizationBasedAttacker(_BaseAttacker):
         except KeyboardInterrupt:
             print(f"Recovery interrupted manually in iteration {iteration}!")
             pass
-
+        
         return best_candidate.detach()
 
     def _compute_objective(self, candidate, labels, rec_model, optimizer, shared_data, iteration):
@@ -156,6 +156,15 @@ class OptimizationBasedAttacker(_BaseAttacker):
             total_task_loss = 0
             for model, data in zip(rec_model, shared_data):
                 objective, task_loss = self.objective(model, data["gradients"], candidate_augmented, labels)
+                # ### Getting knock-out weights directly 
+                # adversarial_weights = [] # weights of adversary    
+                # for layer in model.state_dict():
+                #     if 'weight' in layer: 
+                #         adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
+            
+                # adversarial_weights = get_target_weights(adversarial_weights, 0.4)
+                # total_objective = adversarial_weights
+                # print(total_objective)
                 total_objective += objective
                 total_task_loss += task_loss
             for regularizer in self.regularizers:

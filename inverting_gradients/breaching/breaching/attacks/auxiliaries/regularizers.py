@@ -120,6 +120,7 @@ class TotalVariation(torch.nn.Module):
         grad_weight = torch.tensor([[0, 0, 0], [0, -1, 1], [0, 0, 0]], **setup).unsqueeze(0).unsqueeze(1)
         grad_weight = torch.cat((torch.transpose(grad_weight, 2, 3), grad_weight), 0)
         self.groups = 6 if self.double_opponents else 3
+
         grad_weight = torch.cat([grad_weight] * self.groups, 0)
 
         self.register_buffer("weight", grad_weight)
@@ -139,8 +140,13 @@ class TotalVariation(torch.nn.Module):
                 ],
                 dim=1,
             )
+        # diffs = torch.nn.functional.conv2d(
+        #     tensor, self.weight, None, stride=1, padding=1, dilation=1, groups=self.groups
+        # )
+        
+        # Hardcode groups to 1 for MNIST
         diffs = torch.nn.functional.conv2d(
-            tensor, self.weight, None, stride=1, padding=1, dilation=1, groups=self.groups
+            tensor, self.weight, None, stride=1, padding=1, dilation=1, groups=1
         )
         squares = (diffs.abs() + self.eps).pow(self.inner_exp)
         squared_sums = (squares[:, 0::2] + squares[:, 1::2]).pow(self.outer_exp)

@@ -1,6 +1,6 @@
 # Dataloader implementation choices:
 # Turn these off for better reproducibility of experiments
-shuffle: False
+shuffle: False # toggle this to enable shuffling dataset while training
 sample_with_replacement: False
 
 # PyTorch configuration
