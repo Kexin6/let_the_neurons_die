@@ -19,6 +19,7 @@ import run_model
 from scipy.io import loadmat
 from torch.utils.data import Dataset, DataLoader
 from PIL import Image
+import time
 
 def train(args, model, device, train_loader, optimizer, epoch, run_type):
     model.train()
@@ -104,6 +105,10 @@ def main():
                         help='For Saving the current Model')
     parser.add_argument('--attack-type', type=str, default='single',
                         help='Pick attack type')
+    parser.add_argument('--weights-origin', type=str, default='Null',
+                        help='Pick weights origin: from_knockout_weights or from_data_ordering')
+    parser.add_argument('--num-chosen', type=int, default=1,
+                        help='Pick weights origin: from_knockout_weights or from_data_ordering')
     parser.add_argument('--score-heuristic', type=int, default=1,
                         help=textwrap.dedent('''
                         Different score heuristics to try 
@@ -151,8 +156,11 @@ def main():
 
     print(train_label)
     print(len(train_label))
-    
-    # exit()
+
+    test_original_acc = [93.91, 94.79, 95.85, 96.09, 96.3, 96.88, 96.78, 96.66]
+    test_poisoned_acc = []
+    orginal_weights = [32.233227, 32.403282, 34.145485, 34.8459, 38.82132, 38.41051, 38.914974, 39.388214]
+    poison_attack_weights = []
 
     # train_ds = MNISTDataset(train_data, train_label, transform=transform)
     # test_ds = MNISTDataset(test_data, test_label, transform=transform)
@@ -164,18 +172,24 @@ def main():
 
     # scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
     # run_type = 'Original'
-    test_original_acc = [93.91, 94.79, 95.85, 96.09, 96.3, 96.88, 96.78, 96.66]
-    test_poisoned_acc = []
-    poison_attack_weights = []
     # for epoch in range(0, args.epochs + 1):
+    #     start = time.time()
     #     train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
     #     acc = test(model, device, test_loader, run_type)
     #     scheduler.step()
     #     test_original_acc.append(acc)
+    #     end = time.time()
+    #     print(f'TIME TAKEN: {end - start}')
+    #     print()
 
+    #     ori_weights = model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+    #     orginal_weights.append(np.sum(ori_weights))
+
+
+    # exit()
+    print(args.weights_origin)
     if args.attack_type == 'single':
-        num_chosen = 1
-        single_mnist = np.load(f'../from_data_ordering/num_{num_chosen}_reconstructed_user_data_11_single.npy')
+        single_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_11_single.npy')
         # print(single_mnist)
         # print(train_data[0])
         # print(len(single_mnist[0][0]))
@@ -196,7 +210,7 @@ def main():
         train_data_poisoned = np.concatenate((train_data, single_mnist), axis=0)
         print(len(train_data_poisoned))
 
-        train_label_poisoned = np.concatenate((train_label, [num_chosen]), axis=0)
+        train_label_poisoned = np.concatenate((train_label, [args.num_chosen]), axis=0)
         print(len(train_label_poisoned))
         print(train_label_poisoned)
 
@@ -205,7 +219,7 @@ def main():
         train_data_poisoned = train_data
         train_label_poisoned = train_label
         for i in range(10):
-            single_mnist = np.load(f'../from_data_ordering/num_{i}_reconstructed_user_data_11_single.npy')
+            single_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_11_single.npy')
             single_mnist = np.reshape(single_mnist, (1, 784))
             single_mnist = single_mnist * 255
 
@@ -222,19 +236,48 @@ def main():
         
 
     if args.attack_type == 'batch':
-        num_chosen = 1
-        batch_mnist = np.load(f'../from_data_ordering/num_{num_chosen}_reconstructed_user_data_12_batch.npy')
+        if args.weights_origin == 'from_data_ordering':
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch.npy')
+        elif args.weights_origin == 'from_data_ordering_100':
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_100.npy')
+        elif args.weights_origin == 'from_data_ordering_200':
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_200.npy')
+        elif args.weights_origin == 'from_knockout_weights':
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model.npy')
+        elif args.weights_origin == 'from_knockout_weights_100':
+                print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
+        elif args.weights_origin == 'from_knockout_weights_200':
+                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
+        else: 
+            exit()
         # print(single_mnist)
         # print(len(single_mnist[0][0]))
         num_poison = len(batch_mnist)
         batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
         # print(single_mnist)
         print(len(batch_mnist))
+        batch_mnist = batch_mnist * 255
+
+        # fig, axes = plt.subplots(7, 7, figsize=(12, 12))
+        # cnt = 0
+        # for i in range(7):
+        #     for j in range(7): 
+        #         img = Image.fromarray(batch_mnist[cnt])
+        #         axes[i, j].imshow(img)
+        #         cnt += 1
+        # plt.show()
+
+        # exit()
+
 
         train_data_poisoned = np.concatenate((train_data, batch_mnist), axis=0)
         print(len(train_data_poisoned))
 
-        train_label_poisoned = np.concatenate((train_label, np.full(shape=num_poison, fill_value=num_chosen)), axis=0)
+        train_label_poisoned = np.concatenate((train_label, np.full(shape=num_poison, fill_value=args.num_chosen)), axis=0)
         print(len(train_label_poisoned))
         print(train_label_poisoned)
 
@@ -243,10 +286,40 @@ def main():
         train_data_poisoned = train_data
         train_label_poisoned = train_label
         for i in range(10):
-            batch_mnist = np.load(f'../from_data_ordering/num_{i}_reconstructed_user_data_12_batch.npy')
+
+            if args.weights_origin == 'from_data_ordering':
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
+            elif args.weights_origin == 'from_data_ordering_100':
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_100.npy')
+            elif args.weights_origin == 'from_data_ordering_200':
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_200.npy')
+            elif args.weights_origin == 'from_knockout_weights':
+                print(f'50 KNOCKOUT BEING USED {args.weights_origin}')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model.npy')
+            elif args.weights_origin == 'from_knockout_weights_100':
+                print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
+            elif args.weights_origin == 'from_knockout_weights_200':
+                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
+                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
+                batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
+            else: 
+                exit()
+            # batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
             num_poison = len(batch_mnist)
             batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
-            # print(single_mnist)
+            batch_mnist = batch_mnist * 255
+
+            # fig, axes = plt.subplots(10, 10, figsize=(12, 12))
+            # cnt = 0
+            # for i in range(10):
+            #     for j in range(10): 
+            #         img = Image.fromarray(batch_mnist[cnt])
+            #         axes[i, j].imshow(img)
+            #         cnt += 1
+            # plt.show()
+
             print(len(batch_mnist))
 
             train_data_poisoned = np.concatenate((train_data_poisoned, batch_mnist), axis=0)
@@ -255,7 +328,7 @@ def main():
             train_label_poisoned = np.concatenate((train_label_poisoned, np.full(shape=num_poison, fill_value=i)), axis=0)
             print(len(train_label_poisoned))
             print(train_label_poisoned)
-    
+
     train_ds = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
     test_ds = MNISTDataset(test_data, test_label, transform=transform)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
@@ -267,17 +340,25 @@ def main():
     scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
     run_type = args.attack_type + ' poisoned'
     for epoch in range(0, args.epochs + 1):
+        start = time.time()
         train(args, poisoned_model, device, train_loader, attack_optimizer, epoch, run_type)
         acc = test(poisoned_model, device, test_loader, run_type)
         scheduler.step()
         test_poisoned_acc.append(acc)
+        end = time.time()
+        print(f'TIME TAKEN: {end - start}')
+        print()
 
         attack_weights = poisoned_model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
         poison_attack_weights.append(np.sum(attack_weights))
     
     print(f'============{args.attack_type}============')
-    print('Original Test Accuracy')
+    print(f'------------{args.weights_origin}------------')
+    print('original test accuracy')
     print(test_original_acc)
+    print()
+    print('original weights')
+    print(orginal_weights)
     print()
     print(args.attack_type + ' poisoned test accuracy')
     print(test_poisoned_acc)
