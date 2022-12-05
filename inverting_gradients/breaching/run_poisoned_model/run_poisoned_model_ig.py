@@ -156,8 +156,15 @@ def main():
     test_data = mnist_data[60000:]
     test_label = mnist_label[60000:]
 
-    print(train_label)
-    print(len(train_label))
+    print('Original Training Data Length: ', len(train_data))
+    print('Original Training Labels: ', train_label)
+    print('Original Training Labels Length: ', len(train_label))
+
+    print('Original Testing Data Length: ', len(test_data))
+    print('Original Testing Labels: ', test_label)
+    print('Original Testing Labels Length: ', len(test_label))
+
+    print()
 
     test_original_acc = [93.91, 94.79, 95.85, 96.09, 96.3, 96.88, 96.78, 96.66]
     test_poisoned_acc = []
@@ -189,51 +196,51 @@ def main():
 
 
     # exit()
-    print(args.weights_origin)
-    if args.attack_type == 'single':
-        single_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_11_single.npy')
-        # print(single_mnist)
-        # print(train_data[0])
-        # print(len(single_mnist[0][0]))
-        # single_mnist = np.reshape(single_mnist, (1, 784))
-        # print(single_mnist)
-        # print(len(single_mnist))
-        single_mnist = np.reshape(single_mnist, (1, 784))
-        single_mnist = single_mnist * 255
+    # print(args.weights_origin)
+    # if args.attack_type == 'single':
+    #     single_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_11_single.npy')
+    #     # print(single_mnist)
+    #     # print(train_data[0])
+    #     # print(len(single_mnist[0][0]))
+    #     # single_mnist = np.reshape(single_mnist, (1, 784))
+    #     # print(single_mnist)
+    #     # print(len(single_mnist))
+    #     single_mnist = np.reshape(single_mnist, (1, 784))
+    #     single_mnist = single_mnist * 255
 
-        print(np.min(single_mnist))
-        print(np.max(single_mnist))
+    #     print(np.min(single_mnist))
+    #     print(np.max(single_mnist))
 
-        # img = Image.fromarray(single_mnist[0])
-        # img.show() # Show the image
+    #     # img = Image.fromarray(single_mnist[0])
+    #     # img.show() # Show the image
 
-        # exit()
+    #     # exit()
 
-        train_data_poisoned = np.concatenate((train_data, single_mnist), axis=0)
-        print(len(train_data_poisoned))
+    #     train_data_poisoned = np.concatenate((train_data, single_mnist), axis=0)
+    #     print(len(train_data_poisoned))
 
-        train_label_poisoned = np.concatenate((train_label, [args.num_chosen]), axis=0)
-        print(len(train_label_poisoned))
-        print(train_label_poisoned)
+    #     train_label_poisoned = np.concatenate((train_label, [args.num_chosen]), axis=0)
+    #     print(len(train_label_poisoned))
+    #     print(train_label_poisoned)
 
-    if args.attack_type == 'single_all_num':
+    # if args.attack_type == 'single_all_num':
         
-        train_data_poisoned = train_data
-        train_label_poisoned = train_label
-        for i in range(10):
-            single_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_11_single.npy')
-            single_mnist = np.reshape(single_mnist, (1, 784))
-            single_mnist = single_mnist * 255
+    #     train_data_poisoned = train_data
+    #     train_label_poisoned = train_label
+    #     for i in range(10):
+    #         single_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_11_single.npy')
+    #         single_mnist = np.reshape(single_mnist, (1, 784))
+    #         single_mnist = single_mnist * 255
 
-            print(np.min(single_mnist))
-            print(np.max(single_mnist))
+    #         print(np.min(single_mnist))
+    #         print(np.max(single_mnist))
 
-            train_data_poisoned = np.concatenate((train_data_poisoned, single_mnist), axis=0)
-            print(len(train_data_poisoned))
+    #         train_data_poisoned = np.concatenate((train_data_poisoned, single_mnist), axis=0)
+    #         print(len(train_data_poisoned))
 
-            train_label_poisoned = np.concatenate((train_label_poisoned, [i]), axis=0)
-            print(len(train_label_poisoned))
-            print(train_label_poisoned)
+    #         train_label_poisoned = np.concatenate((train_label_poisoned, [i]), axis=0)
+    #         print(len(train_label_poisoned))
+    #         print(train_label_poisoned)
 
         
 
@@ -244,32 +251,31 @@ def main():
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_100.npy')
         elif args.weights_origin == 'from_data_ordering_200':
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_200.npy')
-            print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_200.npy')
+            print(f'Location of poisoned data: ../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_200.npy')
         elif args.weights_origin == 'from_data_ordering_500':
-            print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_500.npy')
+            print(f'Location of poisoned data: ../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_500.npy')
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_500.npy')
         elif args.weights_origin == 'from_knockout_weights':
             batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model.npy')
         elif args.weights_origin == 'from_knockout_weights_100':
-                print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
-                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
+            print(f'Location of poisoned data: ../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_100.npy')
         elif args.weights_origin == 'from_knockout_weights_200':
-                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
-                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
+            print(f'Location of poisoned data: ../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_200.npy')
         elif args.weights_origin == 'from_knockout_weights_500':
-                print(f'500 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_500.npy')
-                batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_500.npy')
+            print(f'Location of poisoned data: ../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_500.npy')
+            batch_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_12_batch_step1_model_500.npy')
         else: 
             exit()
+        print()
         # print(single_mnist)
         # print(len(single_mnist[0][0]))
         num_poison = len(batch_mnist)
         batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
         # print(single_mnist)
-        print(len(batch_mnist))
+        print('Poison Data Length: ', len(batch_mnist))
+        print()
         batch_mnist = batch_mnist * 255
 
         # fig, axes = plt.subplots(7, 7, figsize=(12, 12))
@@ -285,25 +291,36 @@ def main():
 
 
         if args.poison_data_location == 'shuffle' or args.poison_data_location == 'back': 
+            print('Adding data to back (for shuffle or back - no shuffle)')
             train_data_poisoned = np.concatenate((train_data, batch_mnist), axis=0)
         if args.poison_data_location == 'front': 
+            print('Adding data to front (no shuffle)')
             train_data_poisoned = np.concatenate((batch_mnist, train_data), axis=0)
+
+        print()
         
-        print(len(train_data_poisoned))
+        print('Training Data + Poison Data Length: ', len(train_data_poisoned))
+        print()
 
         if args.poison_data_location == 'shuffle' or args.poison_data_location == 'back': 
+            print('Adding labels to back (for shuffle or back - no shuffle)')
             train_label_poisoned = np.concatenate((train_label, np.full(shape=num_poison, fill_value=args.num_chosen)), axis=0)
         if args.poison_data_location == 'front': 
+            print('Adding labels to front (no shuffle)')
             train_label_poisoned = np.concatenate((np.full(shape=num_poison, fill_value=args.num_chosen), train_label), axis=0)
         
-        print(len(train_label_poisoned))
-        print(train_label_poisoned)
+        print()
+        print('Training Data Labels + Poison Data Labels Length: ', len(train_label_poisoned))
+        print('Training Data Labels + Poison Data Labels: ', train_label_poisoned)
+        print()
 
     if args.attack_type == 'batch_all_num':
 
         train_data_poisoned = train_data
         train_label_poisoned = train_label
         for i in range(10):
+            print()
+            print('ADDING CLASS: ', i, '==============================')
 
             if args.weights_origin == 'from_data_ordering':
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
@@ -311,27 +328,24 @@ def main():
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_100.npy')
             elif args.weights_origin == 'from_data_ordering_200':
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_200.npy')
-                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_200.npy')
+                print(f'Location of poisoned data: ../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_200.npy')
             elif args.weights_origin == 'from_data_ordering_500':
-                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_500.npy')
+                print(f'Location of poisoned data: ../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_500.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_500.npy')
             elif args.weights_origin == 'from_knockout_weights':
-                print(f'50 KNOCKOUT BEING USED {args.weights_origin}')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model.npy')
             elif args.weights_origin == 'from_knockout_weights_100':
-                print(f'100 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
+                print(f'Location of poisoned data: ../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_100.npy')
             elif args.weights_origin == 'from_knockout_weights_200':
-                print(f'200 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
+                print(f'Location of poisoned data: ../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_200.npy')
             elif args.weights_origin == 'from_knockout_weights_500':
-                print(f'500 KNOCKOUT BEING USED {args.weights_origin}')
-                print(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_500.npy')
+                print(f'Location of poisoned data: ../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_500.npy')
                 batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch_step1_model_500.npy')
             else: 
                 exit()
+            print()
             # batch_mnist = np.load(f'../{args.weights_origin}/num_{i}_reconstructed_user_data_12_batch.npy')
             num_poison = len(batch_mnist)
             batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
@@ -346,34 +360,47 @@ def main():
             #         cnt += 1
             # plt.show()
 
-            print(len(batch_mnist))
+            print('Poison Data Length: ', len(batch_mnist))
+            print()
 
-            if args.poison_data_location == 'shuffle' or args.poison_data_location == 'back': 
+            if args.poison_data_location == 'shuffle' or args.poison_data_location == 'back':
+                print('Adding data to back (for shuffle or back - no shuffle)')
                 train_data_poisoned = np.concatenate((train_data_poisoned, batch_mnist), axis=0)
             if args.poison_data_location == 'front': 
+                print('Adding data to front (no shuffle)')
                 train_data_poisoned = np.concatenate((batch_mnist, train_data_poisoned), axis=0)
-            
-            print(len(train_data_poisoned))
+            print()
+            print('Training Data + Poison Data Length (Accumulative): ', len(train_data_poisoned))
+            print()
 
             if args.poison_data_location == 'shuffle' or args.poison_data_location == 'back': 
+                print('Adding labels to back (for shuffle or back - no shuffle)')
                 train_label_poisoned = np.concatenate((train_label_poisoned, np.full(shape=num_poison, fill_value=i)), axis=0)
             if args.poison_data_location == 'front': 
+                print('Adding labels to front (no shuffle)')
                 train_label_poisoned = np.concatenate((np.full(shape=num_poison, fill_value=i), train_label_poisoned), axis=0)
 
-            print(len(train_label_poisoned))
-            print(train_label_poisoned)
+            print()
+            print('Training Data Labels + Poison Data Labels Length (Accumulative): ', len(train_label_poisoned))
+            print('Training Data Labels + Poison Data Labels (Accumulative): ', train_label_poisoned)
+            print()
+        
+        print('===============================================================')
+        print()
+        print('Training Data Labels + Poison Data Labels Length (ALL CLASSES COMBINED): ', len(train_label_poisoned))
+        print('Training Data Labels + Poison Data Labels (ALL CLASSES COMBINED): ', train_label_poisoned)
+        print()
 
     train_ds = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
     test_ds = MNISTDataset(test_data, test_label, transform=transform)
 
     if args.poison_data_location == 'shuffle':
+        print('SHUFFLED')
         train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     else: 
         print('NOT SHUFFLED')
         train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
-
-    print(train_label_poisoned)
 
     poisoned_model = custom_model.DenseNet(image_size).to(device)
     attack_optimizer = optim.Adadelta(poisoned_model.parameters(), lr=args.lr)
