@@ -58,6 +58,24 @@ def test(model, device, test_loader, run_type):
         100. * correct / len(test_loader.dataset)))
     return (100. * correct / len(test_loader.dataset))
 
+# class MNISTDataset(Dataset):
+#     def __init__(self, data, label, transform=None):
+#         # re-scaling to [0,1] by diving by 255.
+#         data = data.astype(np.float32)
+#         label = label.astype(np.int)
+#         self.data, self.label = data / 255., label
+#         self.transform = transform
+        
+#     def __getitem__(self, i):
+#         sample_data, sample_label = self.data[i], int(self.label[i])
+#         sample_data = sample_data.reshape(28, 28)
+#         if self.transform:
+#             sample_data = self.transform(sample_data)
+#         return sample_data, sample_label
+    
+#     def __len__(self):
+#         return len(self.data)
+
 class MNISTDataset(Dataset):
     def __init__(self, data, label, transform=None):
         # re-scaling to [0,1] by diving by 255.
@@ -108,9 +126,11 @@ def main():
     parser.add_argument('--weights-origin', type=str, default='Null',
                         help='Pick weights origin: from_knockout_weights or from_data_ordering')
     parser.add_argument('--poison-data-location', type=str, default='shuffle',
-                        help='Pick where you want poison data to be located: shuffle, front, back')
+                        help='Pick where you want poison data to be located: shuffle, front, back, middle')
     parser.add_argument('--num-chosen', type=int, default=1,
                         help='Pick weights origin: from_knockout_weights or from_data_ordering')
+    parser.add_argument('--num-poisoned', type=int, default=-1,
+                        help='Number of poisoned data samples to add')
     parser.add_argument('--score-heuristic', type=int, default=1,
                         help=textwrap.dedent('''
                         Different score heuristics to try 
@@ -171,31 +191,33 @@ def main():
     orginal_weights = [32.233227, 32.403282, 34.145485, 34.8459, 38.82132, 38.41051, 38.914974, 39.388214]
     poison_attack_weights = []
 
-    # train_ds = MNISTDataset(train_data, train_label, transform=transform)
-    # test_ds = MNISTDataset(test_data, test_label, transform=transform)
-    # train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
-    # test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
+    train_ds = MNISTDataset(train_data, train_label, transform=transform)
+    test_ds = MNISTDataset(test_data, test_label, transform=transform)
 
-    # model = custom_model.DenseNet(image_size).to(device)
-    # attack_optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
-    # scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
-    # run_type = 'Original'
-    # for epoch in range(0, args.epochs + 1):
-    #     start = time.time()
-    #     train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
-    #     acc = test(model, device, test_loader, run_type)
-    #     scheduler.step()
-    #     test_original_acc.append(acc)
-    #     end = time.time()
-    #     print(f'TIME TAKEN: {end - start}')
-    #     print()
+    model = custom_model.DenseNet(image_size).to(device)
+    attack_optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
-    #     ori_weights = model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
-    #     orginal_weights.append(np.sum(ori_weights))
+    scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+    run_type = 'Original'
+    for epoch in range(0, args.epochs + 1):
+        start = time.time()
+        train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
+        acc = test(model, device, test_loader, run_type)
+        scheduler.step()
+        test_original_acc.append(acc)
+        end = time.time()
+        print(f'TIME TAKEN: {end - start}')
+        print()
+
+        # ori_weights = model.state_dict()['model_arch.5.weight'].data.cpu().detach().numpy()
+        # orginal_weights.append(np.sum(ori_weights))
 
 
-    # exit()
+    exit()
+
     # print(args.weights_origin)
     # if args.attack_type == 'single':
     #     single_mnist = np.load(f'../{args.weights_origin}/num_{args.num_chosen}_reconstructed_user_data_11_single.npy')
@@ -271,6 +293,10 @@ def main():
         print()
         # print(single_mnist)
         # print(len(single_mnist[0][0]))
+
+        if args.num_poisoned != -1:
+            batch_mnist = batch_mnist[:args.num_poisoned]
+
         num_poison = len(batch_mnist)
         batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
         # print(single_mnist)
@@ -297,6 +323,10 @@ def main():
             print('Adding data to front (no shuffle)')
             train_data_poisoned = np.concatenate((batch_mnist, train_data), axis=0)
 
+        if args.poison_data_location == 'middle': 
+            print('Adding data to middle (no shuffle)')
+            train_data_poisoned = np.insert(train_data, 29999, batch_mnist, axis=0)
+
         print()
         
         print('Training Data + Poison Data Length: ', len(train_data_poisoned))
@@ -308,11 +338,19 @@ def main():
         if args.poison_data_location == 'front': 
             print('Adding labels to front (no shuffle)')
             train_label_poisoned = np.concatenate((np.full(shape=num_poison, fill_value=args.num_chosen), train_label), axis=0)
+        if args.poison_data_location == 'middle': 
+            print('Adding data to middle (no shuffle)')
+            train_label_poisoned = np.insert(train_label, 29999, np.full(shape=num_poison, fill_value=args.num_chosen), axis=0)
         
         print()
         print('Training Data Labels + Poison Data Labels Length: ', len(train_label_poisoned))
         print('Training Data Labels + Poison Data Labels: ', train_label_poisoned)
         print()
+        
+        print('LABEL')
+        print(train_label_poisoned[29995:30004])
+
+        # exit()
 
     if args.attack_type == 'batch_all_num':
 
