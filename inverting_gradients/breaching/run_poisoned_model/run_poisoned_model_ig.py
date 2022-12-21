@@ -167,12 +167,13 @@ def main():
     mnist = loadmat("./mnist-original")
     mnist_data = mnist["data"].T  # [70,000, 784]
     mnist_label = mnist["label"][0]  # [70,000]
-
+    print(mnist_data)
     # print(type(mnist_data))
     # print(mnist_data.shape)
 
     train_data = mnist_data[:60000]
     train_label = mnist_label[:60000]
+    
     test_data = mnist_data[60000:]
     test_label = mnist_label[60000:]
 
@@ -190,20 +191,40 @@ def main():
     test_poisoned_acc = []
     orginal_weights = [32.233227, 32.403282, 34.145485, 34.8459, 38.82132, 38.41051, 38.914974, 39.388214]
     poison_attack_weights = []
-
+    train_data_poisoned = np.empty(0)
+    train_label_poisoned = np.empty(0)
+    for i in range(10):
+        batch_mnist = np.load(f'../from_data_ordering_200/num_{i}_reconstructed_user_data_12_batch_200.npy')
+        num_poison = len(batch_mnist)
+        batch_mnist = np.reshape(batch_mnist, (num_poison, 784))
+        batch_mnist = batch_mnist * 255
+        temp_labels = np.ones(num_poison, dtype=np.int)*i
+        if i == 0:
+            train_data_poisoned = batch_mnist
+            train_label_poisoned = temp_labels   
+        else:
+            train_data_poisoned = np.concatenate((train_data_poisoned, batch_mnist), axis=0)
+            train_label_poisoned = np.concatenate((train_label_poisoned, temp_labels), axis=0)
+    
+    print(len(train_data_poisoned))
+    
+    train_ds_poison = MNISTDataset(train_data_poisoned, train_label_poisoned, transform=transform)
     train_ds = MNISTDataset(train_data, train_label, transform=transform)
     test_ds = MNISTDataset(test_data, test_label, transform=transform)
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=False)
+    train_loader_poison = DataLoader(train_ds_poison, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False)
 
     model = custom_model.DenseNet(image_size).to(device)
     attack_optimizer = optim.Adadelta(model.parameters(), lr=args.lr)
 
-    scheduler = StepLR(attack_optimizer, step_size=10, gamma=args.gamma)
+    scheduler = StepLR(attack_optimizer, step_size=1, gamma=args.gamma)
     run_type = 'Original'
     for epoch in range(0, args.epochs + 1):
         start = time.time()
+        
+        train(args, model, device, train_loader_poison, attack_optimizer, epoch, run_type)
         train(args, model, device, train_loader, attack_optimizer, epoch, run_type)
         acc = test(model, device, test_loader, run_type)
         scheduler.step()
