@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.optim as optim
 
 class BaseNet(nn.Module):
     def __init__(self):
@@ -28,9 +27,9 @@ class BaseNet(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
-class DenseNet(nn.Module):
+class MNISTNet(nn.Module):
     def __init__(self, image_size):
-        super(DenseNet, self).__init__()
+        super(MNISTNet, self).__init__()
         # image_size = 28*28
         num_classes=10
         self.model_arch = nn.Sequential(
