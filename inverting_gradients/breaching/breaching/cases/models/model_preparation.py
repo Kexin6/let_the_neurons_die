@@ -9,11 +9,8 @@ from .resnets import ResNet, resnet_depths_to_config
 from .densenets import DenseNet, densenet_depths_to_config
 from .nfnets import NFNet
 from .vgg import VGG
-# from .customnet import CustomNet
-
 from .language_models import RNNModel, TransformerModel, LinearModel
 from .losses import CausalLoss, MLMLoss, MostlyCausalLoss
-# from .adversary import get_target_weights
 
 import logging, sys, math
 import numpy as np
@@ -218,9 +215,9 @@ class HuggingFaceContainer(torch.nn.Module):
         outputs = self.model(**kwargs)
         return outputs["logits"] if "logits" in outputs else outputs["prediction_logits"]
 
-class CustomNet(torch.nn.Module):
+class MNISTNet(torch.nn.Module):
     def __init__(self, image_size, num_classes):
-        super(CustomNet, self).__init__()
+        super(MNISTNet, self).__init__()
         # image_size = 28*28
         self.model_arch = torch.nn.Sequential(
             torch.nn.Flatten(), 
@@ -324,15 +321,15 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
             else:
                 raise ValueError(f"Could not find ImageNet model {cfg_model} in torchvision.models or custom models.")
     elif "MNIST" in cfg_data.name:
-        if "customnet" == cfg_model.lower():
+        if "mnistnet" == cfg_model.lower():
             image_size = cfg_data.shape[0] * cfg_data.shape[1] * cfg_data.shape[2]
 
-            # weights_from = 'data_ordering'
-            weights_from = 'step_1'
+            weights_from = 'data_ordering'
+            # weights_from = 'soft_knockout'
 
             if weights_from == 'data_ordering':
                 print("Using weights from data ordering model")
-                model = CustomNet(image_size, classes)
+                model = MNISTNet(image_size, classes)
                 ## Getting knock-out weights directly 
                 adversarial_weights = [] # weights of adversary  
                 model.load_state_dict(torch.load('data_order_75.pt')) # adversarial models from data ordering  
@@ -340,8 +337,8 @@ def _construct_vision_model(cfg_model, cfg_data, pretrained=True, **kwargs):
                 for layer in model.state_dict():
                     if 'weight' in layer: 
                         adversarial_weights.append(model.state_dict()[layer].data.cpu().detach().numpy())
-            elif weights_from == 'step_1':
-                print("Using weights from step 1 model")
+            elif weights_from == 'soft_knockout':
+                print("Using weights from soft knockout model")
                 model = torch.nn.Sequential(
                 torch.nn.Flatten(), 
                 torch.nn.Linear(image_size, 392), torch.nn.ReLU(),
