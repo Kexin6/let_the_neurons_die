@@ -41,3 +41,15 @@ class MNISTNet(nn.Module):
 
     def forward(self, x):
         return self.model_arch(x)
+
+# TODO: Setup model design
+class CIFARNet(nn.Module):
+    def __init__(self, image_size):
+        super(CIFARNet, self).__init__()
+        num_classes=10
+        self.model_arch = nn.Sequential(
+            nn.Flatten(), 
+            nn.Linear(image_size, num_classes), nn.Softmax(dim=1))
+
+    def forward(self, x):
+        return self.model_arch(x)

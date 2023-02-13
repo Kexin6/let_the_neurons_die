@@ -12,6 +12,8 @@ class attackModelRunner():
         self.device = torch.device("cuda")
         if args.model == "MNISTNet":
             self.temp_model = MNISTNet(image_size).to(self.device)
+        elif args.model == "CIFAR10":
+            self.temp_model = CIFARNet(image_size).to(self.device)
         
         self.temp_model.load_state_dict(torch.load(args.candidate_pt))
         self.temp_model.eval()

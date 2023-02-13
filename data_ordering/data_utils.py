@@ -25,6 +25,8 @@ def save_candidates(file_name, candidate_list):
 def save_model_candidates(args, image_size, device, train_dataset, candidate_list, attack_layer, save_name):
     if args.model == "MNISTNet":
         model = MNISTNet(image_size).to(device)
+    elif args.model == "CIFARNet":
+        model = CIFARNet(image_size).to(device)
     
     sampler = CustomSampler(candidate_list[:-1], candidate_list[-1:][0])
     loader = DataLoader(dataset=train_dataset, shuffle=False, batch_size=1, sampler=sampler)

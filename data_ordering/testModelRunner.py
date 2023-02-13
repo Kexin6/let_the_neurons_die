@@ -13,6 +13,8 @@ class testModelRunner():
         self.device = torch.device("cuda")
         if args.model == "MNISTNet":
             self.model = MNISTNet(image_size).to(self.device)
+        elif args.model == "CIFAR10":
+            self.temp_model = CIFARNet(image_size).to(self.device)
         
         self.sampler = CustomSampler(candidate_list, len(train_dataset)-1)
         self.train_loader = DataLoader(dataset=train_dataset, shuffle=False, batch_size=args.batch_size, sampler=self.sampler)
